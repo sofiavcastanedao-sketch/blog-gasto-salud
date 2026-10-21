@@ -1,13 +1,15 @@
 ---
-title: "Resultados y análisis del modelo Probit"
-description: "Probabilidades de pago de bolsillo según el régimen de afiliación y características del hogar."
+title: "Resultados"
+description: "Errores estándar robustos entre paréntesis. Pobres y no pobres: efecto promedio dentro de cada grupo; para Hogar
+pobre no aplica. En La Candelaria, la diferencia entre pobres y no pobres es de -2,1 pp para Adultos mayores (p =
+0,139) y de -11,3 pp para Subsidiado (p = 0,438). ∗∗∗ p < 0,01; ∗∗ p < 0,05; ∗ p < 0,1."
 author: "Sofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata"
-date: "2026-10-23" # Un día antes
+date: "2026-10-23" 
 categories: ["Resultados", "Probit", "Econometría"]
-image: "probabilidades_predichas.png" 
+image: "efectos_marginales.png" 
 ---
 
-## Resultados del Modelo Probit
+## Resultados de los Efectos Marginales
 
 Efectos marginales promedio sobre la probabilidad de pagar de bolsillo (puntos porcentuales).
 
