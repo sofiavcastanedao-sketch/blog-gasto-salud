@@ -9,7 +9,7 @@ image: "portada.jpeg"
 
 # Introducción
 
-![Adultos mayores a la espra de recibir atención médica](portada.jpeg)
+![Adultos mayores a la espera de recibir atención médica](portada.jpeg)
 
 Una enfermedad es un choque incierto sobre el presupuesto del hogar: si el pago directo por atención es elevado frente a los recursos disponibles, compromete el resto de su consumo y se denomina gasto catastrófico cuando supera un umbral (Xu et al., 2003). Sin embargo, el gasto catastrófico es solo el caso extremo de un problema más amplio: un sistema de salud ofrece protección financiera cuando las personas reciben la atención que necesitan sin tener que pagarla de su bolsillo en condiciones que comprometan su bienestar (WHO, 2010).
 
