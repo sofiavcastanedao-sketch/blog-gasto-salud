@@ -1,0 +1,1612 @@
+---
+title: "¿Catástrofe o desprotección?"
+subtitle: "Gasto de bolsillo en salud de los hogares de La Candelaria: un modelo probit con la ECV de Medellín 2025"
+author: "Sofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata"
+date: 2026-10-22
+date-format: "D [de octubre de] YYYY"
+crossref:
+  fig-prefix: Figura
+  tbl-prefix: Tabla
+  fig-title: Figura
+  tbl-title: Tabla
+format:
+  pdf:
+    pdf-engine: pdflatex
+    documentclass: article
+    papersize: letter
+    geometry: margin=2.5cm
+    fontsize: 11pt
+    number-sections: true
+    colorlinks: true
+    fig-width: 6.5
+    fig-height: 3.2
+    fig-pos: "!htb"
+    include-in-header:
+      text: |
+        \linespread{1.1}
+        \usepackage{float}
+        \renewcommand{\figurename}{Figura}
+        \renewcommand{\tablename}{Tabla}
+        \renewcommand{\contentsname}{Contenido}
+execute:
+  echo: false
+  warning: false
+  message: false
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+#| label: paquetes-latex
+#| include: false
+# ------------------------------------------------------------------------------------------
+# LaTeX: antes de crear el PDF, instala con TinyTeX los paquetes que el documento necesita y
+# que no estén instalados. Si TinyTeX está desactualizado, lo actualiza y vuelve a intentar.
+# ------------------------------------------------------------------------------------------
+if (isTRUE(getOption("knitr.in.progress")) && requireNamespace("tinytex", quietly = TRUE)) {
+  archivos_tex <- c(
+    "amsmath.sty", "booktabs.sty", "caption.sty", "colortbl.sty", "environ.sty", "float.sty",
+    "footnotehyper.sty", "geometry.sty", "hyperref.sty", "lmodern.sty", "makecell.sty", "microtype.sty",
+    "multirow.sty", "parskip.sty", "pdflscape.sty", "tabu.sty", "threeparttable.sty", "threeparttablex.sty",
+    "trimspaces.sty", "ulem.sty", "upquote.sty", "varwidth.sty", "wrapfig.sty", "xcolor.sty",
+    "xurl.sty", "bookmark.sty")
+  # Busca cada archivo con kpsewhich (el buscador de LaTeX); solo si falta alguno intenta instalarlo
+  kpse <- Sys.which("kpsewhich")
+  if (!nzchar(kpse) && tinytex::is_tinytex())
+    kpse <- list.files(file.path(tinytex::tinytex_root(), "bin"), "^kpsewhich(\\.exe)?$",
+                       recursive = TRUE, full.names = TRUE)[1]
+  falta_tex <- function() {
+    if (is.na(kpse) || !nzchar(kpse)) return(character(0))
+    Filter(function(a) {
+      r <- suppressWarnings(tryCatch(system2(kpse, a, stdout = TRUE, stderr = FALSE), error = function(e) ""))
+      length(r) == 0 || !nzchar(r[1])
+    }, archivos_tex)
+  }
+  faltan <- tryCatch(falta_tex(), error = function(e) character(0))
+  if (length(faltan) > 0) {
+    try(tinytex::parse_install(text = paste0("! LaTeX Error: File `", faltan, "' not found.")), silent = TRUE)
+    faltan <- tryCatch(falta_tex(), error = function(e) character(0))
+    if (length(faltan) > 0)
+      warning("Faltan archivos de LaTeX: ", paste(faltan, collapse = ", "))
+  }
+}
+```
+
+```{r}
+#| label: paquetes
+#| include: false
+# Paquetes de R
+paquetes_r <- c("haven", "labelled", "readxl", "knitr", "kableExtra", "marginaleffects", "sandwich",
+                "lmtest", "car", "ResourceSelection", "patchwork", "tidyverse", "stringi", "tinytex")
+nuevos <- paquetes_r[!vapply(paquetes_r, requireNamespace, logical(1), quietly = TRUE)]
+if (length(nuevos) > 0) install.packages(nuevos, repos = "https://cloud.r-project.org")
+library(haven); library(labelled); library(readxl); library(knitr); library(kableExtra)
+library(marginaleffects); library(sandwich); library(lmtest); library(car)
+library(ResourceSelection); library(patchwork)
+library(tidyverse)                       # al final, para que select, filter y summarise sean de dplyr
+
+options(knitr.kable.NA = "", scipen = 999, digits = 4)
+f2  <- function(x, d = 2) formatC(x, format = "f", digits = d, decimal.mark = ",", big.mark = ".")
+pp  <- function(x, d = 1) f2(100 * x, d)                 # proporción -> porcentaje
+fp  <- function(p) ifelse(p < 0.001, "< 0,001", f2(p, 3))
+cop <- function(x) paste0("\\$", formatC(round(x), format = "d", big.mark = ".", decimal.mark = ","))
+tabla <- function(df, cap, ...) kable(df, format = "latex", booktabs = TRUE, caption = cap, linesep = "", align = "l",
+                                      escape = FALSE, ...) |>
+  kable_styling(latex_options = c("hold_position", "scale_down"), font_size = 9)
+probit <- function(f, datos) do.call("glm", list(formula = f, family = binomial(link = "probit"), data = datos))
+estrellas <- function(p) case_when(p < 0.01 ~ "$^{***}$", p < 0.05 ~ "$^{**}$", p < 0.1 ~ "$^{*}$", TRUE ~ "")
+ci <- function(k, n) prop.test(k, n, correct = FALSE)$conf.int
+
+# Paleta de las figuras
+pal    <- c(azul = "#2a78d6", naranja = "#eb6834", aqua = "#1baf7a")
+azules <- c("#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b")
+col_txt <- "#52514e"; col_grid <- "#d9d8d4"
+theme_set(theme_minimal(base_size = 8) +
+          theme(text = element_text(color = col_txt), plot.title = element_text(face = "bold", color = "#0b0b0b"),
+                panel.grid.minor = element_blank(), panel.grid.major = element_line(color = "#ecebe8"),
+                strip.text = element_text(face = "bold", hjust = 0), legend.key.size = unit(8, "pt")))
+```
+
+```{r}
+#| label: limpieza-encuesta
+#| include: false
+# ---------------------------------------------------------------- 1. Lectura
+# ECV_2025.rds es la misma base de ECV_2025.xlsx guardada en formato comprimido de R (pesa 1,4 MB
+# en vez de 26 MB). Si está en la carpeta se usa; si no, se lee el Excel original.
+ecv_raw <- if (file.exists("ECV_2025.rds")) readRDS("ECV_2025.rds") else read_excel("ECV_2025.xlsx")
+
+# Nombres de las variables que usa el análisis
+fijos <- c(NoForm = "id_formulario", Hogar = "id_hogar", persona = "id_persona",
+           FEV = "fex_vivienda", FEH = "fex_hogar", FEP = "fex_persona", A.6 = "zona",
+           A.7 = "comuna", A.10 = "estrato", A.14 = "n_personas", B.1 = "orden_persona",
+           B.2 = "sexo", B.6 = "edad", F.1 = "afiliacion_salud", F.8 = "enfermedad_cronica",
+           H.20 = "ingreso_pension", H.31 = "actividad_actual", J.36 = "tenencia",
+           J.37 = "viv_alquiler", J.38 = "viv_cuota", J.39 = "viv_arriendo_estimado",
+           J.40 = "viv_servicios_arr", J.41 = "viv_seguros_arr", J.42 = "viv_admin_arr",
+           J.43 = "viv_reparaciones_arr_anual", J.44 = "viv_servicios_prop", J.45 = "viv_predial_anual",
+           J.46 = "viv_seguros_prop", J.47 = "viv_intereses_hipoteca", J.48 = "viv_admin_prop",
+           J.49 = "viv_reparaciones_prop_anual", J.50 = "viv_servicios_otra", J.51 = "viv_admin_otra",
+           J.52 = "viv_reparaciones_otra_anual",
+           K.1 = "gasto_pensiones_escolares", K.2 = "gasto_transporte_escolar",
+           K.3 = "gasto_alimentos", K.4 = "gasto_bebidas_tabaco", K.5 = "gasto_combustibles",
+           K.6 = "gasto_servicios_medicos", K.7 = "gasto_medicamentos",
+           K.8 = "gasto_transporte_comunic", K.9 = "gasto_esparcimiento",
+           K.10 = "gasto_intereses_financieros", K.11 = "gasto_total_mensual",
+           K.12 = "anual_matriculas", K.13 = "anual_uniformes", K.14 = "anual_utiles", K.15 = "anual_vestuario",
+           K.16 = "anual_muebles", K.17 = "anual_vacaciones", K.18 = "anual_impuesto_vehicular",
+           K.19 = "anual_otros_prestamos")
+
+# ---------------------------------------------------------------- 2. Glosario (con el diccionario, si está)
+dic <- "Diccionario-de-Datos-2025.xlsx"
+vacias <- c("de","del","la","las","el","los","en","y","o","a","al","por","para","con","que",
+            "se","su","sus","un","una","es","le","lo","usted","este","esta","ha","hay","como",
+            "cual","cuales","cuantos","cuanto","miembros","hogar","ultimos","meses","si","no",
+            "entre","otros","otras","sobre","utilice","escala","donde")
+nombre_corto <- function(codigo, etiqueta) {    # código + 3 palabras clave de la pregunta
+  pal <- etiqueta |> str_remove("^[A-Z]\\.?[0-9]+[A-Z]?\\s*:\\s*") |> str_remove("\\(.*$") |>
+    tolower() |> stringi::stri_trans_general("Latin-ASCII") |>
+    str_replace_all("[^a-z0-9 ]", " ") |> str_squish() |> str_split(" ") |>
+    map(\(p) head(p[!p %in% vacias & nchar(p) > 1], 3))
+  map2_chr(tolower(str_remove_all(codigo, "[^A-Za-z0-9]")), pal, \(c, p) paste(c(c, p), collapse = "_"))
+}
+if (file.exists(dic)) {
+  leer_hoja <- function(hoja) {          # ubica la fila de encabezado (la que contiene "Etiqueta")
+    raw  <- read_excel(dic, sheet = hoja, col_names = FALSE, col_types = "text", .name_repair = "minimal")
+    fila <- which(apply(raw == "Etiqueta", 1, any, na.rm = TRUE))[1]
+    set_names(raw[-(1:fila), ], make.names(unlist(raw[fila, ]), unique = TRUE))
+  }
+  dicc_var <- leer_hoja("Variables") |> transmute(codigo = Variable, etiqueta = Etiqueta) |> filter(!is.na(codigo))
+  dicc_val <- leer_hoja("Valores") |> select(codigo = 1, valor = 2, etiqueta = 3) |> fill(codigo) |>
+    filter(!is.na(valor), !is.na(etiqueta)) |> mutate(valor = suppressWarnings(as.numeric(valor)))
+} else {                                 # sin diccionario: se usan los códigos como etiqueta
+  dicc_var <- tibble(codigo = names(ecv_raw), etiqueta = names(ecv_raw))
+  dicc_val <- tibble(codigo = character(), valor = numeric(), etiqueta = character())
+}
+glosario <- dicc_var |>
+  mutate(nombre_nuevo = make.unique(coalesce(unname(fijos[codigo]), nombre_corto(codigo, etiqueta)), sep = "_")) |>
+  filter(codigo %in% names(ecv_raw))
+write.csv(select(glosario, codigo, nombre_nuevo, etiqueta), "glosario_nombres.csv",
+          row.names = FALSE, fileEncoding = "UTF-8")
+
+# ---------------------------------------------------------------- 3. Códigos especiales -> NA
+especiales <- c(-99, -98, -88, -888)      # no responde, no sabe, no aplica, sin etiqueta
+n_esp <- map_int(select(ecv_raw, where(is.numeric)), \(x) sum(x %in% especiales))
+ecv <- ecv_raw |>
+  mutate(across(where(is.numeric), \(x) replace(x, x %in% especiales, NA))) |>
+  rename(any_of(setNames(glosario$codigo, glosario$nombre_nuevo)))
+
+# ---------------------------------------------------------------- 4. Etiquetas
+var_label(ecv) <- as.list(setNames(glosario$etiqueta, glosario$nombre_nuevo))
+for (cod in intersect(dicc_val$codigo, glosario$codigo)) {
+  v  <- glosario$nombre_nuevo[glosario$codigo == cod]
+  et <- filter(dicc_val, codigo == cod, !valor %in% especiales, !is.na(valor))
+  if (is.numeric(ecv[[v]]) && nrow(et) > 0) val_labels(ecv[[v]]) <- setNames(et$valor, et$etiqueta)
+}
+
+# ---------------------------------------------------------------- 5. Estructura y guardado
+est <- summarise(ecv, jefes = sum(orden_persona == 1, na.rm = TRUE), .by = c(id_formulario, id_hogar))
+stopifnot(all(est$jefes == 1), !anyDuplicated(select(ecv, id_formulario, id_hogar, id_persona)))
+saveRDS(ecv, "ecv_2025_limpia.rds")
+```
+
+```{r}
+#| label: hogares
+#| include: false
+z <- function(x) coalesce(x, 0)
+personas_med <- zap_labels(ecv) |> filter(comuna %in% 1:16) |>
+  mutate(hid = paste(id_formulario, id_hogar, sep = "_"))
+personas <- filter(personas_med, comuna == 10)
+
+agregados <- personas_med |> summarise(
+  n65    = sum(edad >= 65, na.rm = TRUE),
+  ncron  = sum(enfermedad_cronica %in% 1),
+  nocup  = sum(actividad_actual %in% 1:4),                 # asalariados o cuenta propia
+  n_desc = sum(is.na(actividad_actual) & edad >= 15),      # sin respuesta laboral
+  nsubs  = sum(afiliacion_salud %in% 3),
+  ncontr = sum(afiliacion_salud %in% 1:2),
+  nreg   = n(), nafil = sum(afiliacion_salud %in% 1:5),        # personas registradas y afiliadas
+  pens_hh = as.integer(any(coalesce(ingreso_pension, 0) > 0)), .by = hid)
+
+jefes <- personas_med |> filter(orden_persona == 1) |> left_join(agregados, by = "hid")
+
+# Arriendo estimado para los propietarios que pagan crédito (J.39 no se les pregunta):
+# mediana del arriendo estimado de los propietarios con vivienda pagada del mismo estrato
+imp_arr <- jefes |> filter(tenencia == 3, z(viv_arriendo_estimado) > 0) |>
+  summarise(arr_imp = median(viv_arriendo_estimado), .by = estrato)
+
+hogares_med <- jefes |> left_join(imp_arr, by = "estrato") |> mutate(
+  # Gasto mensual del módulo K (sin intereses ni gastos financieros, K.10)
+  g_alim    = z(gasto_alimentos),
+  g_smed    = z(gasto_servicios_medicos), g_meds = z(gasto_medicamentos),
+  g_salud   = g_smed + g_meds,
+  g_k_mens  = z(gasto_pensiones_escolares) + z(gasto_transporte_escolar) + g_alim + z(gasto_bebidas_tabaco) +
+              z(gasto_combustibles) + g_salud + z(gasto_transporte_comunic) + z(gasto_esparcimiento),
+  # Gastos anuales del módulo K, llevados a mes (sin impuestos ni préstamos: K.18 y K.19)
+  g_k_anual = (z(anual_matriculas) + z(anual_uniformes) + z(anual_utiles) + z(anual_vestuario) +
+               z(anual_muebles) + z(anual_vacaciones)) / 12,
+  # Vivienda (módulo J): arriendo pagado o estimado, servicios, administración, seguros y reparaciones
+  g_arriendo = case_when(tenencia == 1 ~ z(viv_alquiler),
+                         tenencia == 2 ~ coalesce(viv_arriendo_estimado, arr_imp, 0),
+                         TRUE ~ z(viv_arriendo_estimado)),
+  g_viv_otros = z(viv_servicios_arr) + z(viv_servicios_prop) + z(viv_servicios_otra) +
+                z(viv_admin_arr) + z(viv_admin_prop) + z(viv_admin_otra) + z(viv_seguros_arr) + z(viv_seguros_prop) +
+                (z(viv_reparaciones_arr_anual) + z(viv_reparaciones_prop_anual) + z(viv_reparaciones_otra_anual)) / 12,
+  g_viv     = g_arriendo + g_viv_otros,
+  g_consumo = g_k_mens + g_k_anual + g_viv)
+
+# ---------------------------------------------------------------- Limpieza (misma regla en toda la ciudad)
+paso1 <- filter(hogares_med, g_k_mens > 0)
+paso2 <- filter(paso1, g_alim >= 50000)
+paso3 <- filter(paso2, !(nocup == 0 & n_desc > 0))
+embudo <- map(list(hogares_med, paso1, paso2, paso3), \(d) c(sum(d$comuna == 10), nrow(d)))
+
+# ---------------------------------------------------------------- Capacidad de pago (Xu et al., 2003)
+med <- paso3 |> mutate(eqs = n_personas^0.56, sh_alim = g_alim / g_consumo)
+q_alim  <- quantile(med$sh_alim, c(0.45, 0.55))
+lin_sub <- mean((med$g_alim / med$eqs)[med$sh_alim >= q_alim[1] & med$sh_alim <= q_alim[2]])
+med <- med |> mutate(
+  subsist   = lin_sub * eqs,                                         # gasto de subsistencia del hogar
+  ctp       = if_else(g_alim >= subsist, g_consumo - subsist, g_consumo - g_alim),
+  sh_ctp    = g_salud / ctp,
+  sh_cons   = g_salud / g_consumo,
+  paga      = as.integer(g_salud > 0),                               # variable dependiente principal
+  paga_med  = as.integer(g_meds > 0),
+  cat20     = as.integer(sh_ctp > 0.20), cat25 = as.integer(sh_ctp > 0.25), cat40 = as.integer(sh_ctp > 0.40),
+  ods10     = as.integer(sh_cons > 0.10), ods25 = as.integer(sh_cons > 0.25),
+  empobrece = as.integer(g_consumo >= subsist & g_consumo - g_salud < subsist),
+  # Solo módulo K (para mostrar el problema de medición)
+  ctp_k     = g_k_mens - g_alim, cat40_k = as.integer(if_else(g_salud == 0, 0, g_salud / ctp_k) > 0.40),
+  # Pobreza relativa: 40 % de menor consumo per cápita sin salud en Medellín
+  cpc_ss    = (g_consumo - g_salud) / n_personas,
+  pobre     = as.integer(cpc_ss <= quantile(cpc_ss, 0.4)),
+  pobre_cs  = as.integer(g_consumo / n_personas <= quantile(g_consumo / n_personas, 0.4)),   # robustez
+  pobre_sa  = as.integer((g_consumo - g_salud - g_arriendo) / n_personas <=
+                           quantile((g_consumo - g_salud - g_arriendo) / n_personas, 0.4)),
+  pobre_sub = as.integer(g_consumo - g_salud < subsist),
+  pobre_est = as.integer(estrato <= 3),
+  quintil   = ntile(cpc_ss, 5),
+  cand      = as.integer(comuna == 10),
+  sinocup   = as.integer(nocup == 0),
+  sh_subs   = nsubs / n_personas,
+  subs_any  = as.integer(nsubs > 0),
+  adm       = as.integer(n65 > 0),
+  todos_afil = as.integer(nafil == nreg),
+  jefa      = as.integer(sexo == 2),
+  arrienda  = as.integer(tenencia == 1))
+corte_pobre <- quantile(med$cpc_ss, 0.4)
+hog <- filter(med, cand == 1)
+pob <- filter(hog, pobre == 1)
+stopifnot(!anyNA(hog[c("paga", "n65", "sinocup", "sh_subs", "pobre", "ctp")]))
+saveRDS(hog, "hogares_candelaria_modelo.rds")              # base del modelo (un hogar por fila)
+saveRDS(med, "hogares_medellin.rds")
+fex_rango <- range(med$fex_hogar)
+```
+
+```{r}
+#| label: datos-encuesta
+#| include: false
+# Respuestas de la encuesta a hogares (Excel_Encuesta_Econometría_1.xlsx), transcritas por hogar.
+# La columna del hogar 9 está vacía en el Excel, por lo que la muestra es de 8 hogares.
+n_enc <- 8
+enc <- tribble(
+  ~Hogar, ~Personas, ~`Adultos de 65+`, ~`Trabajo y pensión`,      ~`Gasto por persona, sin salud`, ~Régimen,        ~`Plan voluntario`,             ~`Gasto en salud del mes`,
+  "1",    "5 o más", "2 o más",         "Trabaja",                 "Más de \\$600.000",             "Contributivo",  "Complementario",               "Más de \\$300.000",
+  "2",    "3",       "2 o más",         "Trabaja",                 "Más de \\$600.000",             "Contributivo",  "No",                           "Sin dato",
+  "3",    "2",       "1",               "Trabaja",                 "Más de \\$600.000",             "Contributivo",  "Complementario",               "Más de \\$300.000",
+  "4",    "3",       "Al menos 1",      "Trabaja",                 "\\$320.000 a \\$600.000",       "Contributivo",  "No",                           "\\$50.000 a \\$150.000",
+  "5",    "1",       "1",               "Trabaja y pensión",       "Más de \\$600.000",             "Contributivo",  "Prepagada y complementario",   "Más de \\$300.000",
+  "6",    "3",       "Al menos 1",      "Trabaja",                 "Más de \\$600.000",             "Mixto",         "No",                           "\\$0",
+  "7",    "4",       "2 o más",         "Pensión, sin ocupados",   "Más de \\$600.000",             "Contributivo",  "Prepagada",                    "Más de \\$300.000",
+  "8",    "5 o más", "2 o más",         "Trabaja y pensión",       "Más de \\$600.000",             "Mixto",         "No",                           "Sin dato")
+# Respuestas clave: cada fila lista los hogares que marcaron la opción
+resp <- tribble(
+  ~Grupo,                         ~Respuesta,                                                          ~ids,
+  "Necesidad de atención",        "Gastó en salud en el último mes",                                   "1,2,3,4,5,7,8",
+  "Necesidad de atención",        "Gastó en transporte a citas",                                       "1,2,3,4,5,7,8",
+  "Necesidad de atención",        "Gastó en medicamentos",                                             "1,3,4,7,8",
+  "Necesidad de atención",        "Gastó en consultas particulares, exámenes, terapias o insumos",     "1,4,7,8",
+  "Necesidad de atención",        "Más de la mitad o todo el gasto fue para la persona mayor",          "1,2,3,4,5,7,8",
+  "Copagos y cuotas moderadoras", "Paga entre \\$5.000 y \\$20.000 cada vez que usa la EPS",            "1,2,3,4,5,6,7,8",
+  "Copagos y cuotas moderadoras", "Ese pago les ha impedido ir alguna vez",                            "",
+  "Medicamentos (últimos 3 meses)", "Algún medicamento formulado quedó pendiente",                     "1,2,3,4,5,7,8",
+  "Medicamentos (últimos 3 meses)", "\\quad Lo compraron",                                             "1,3,7",
+  "Medicamentos (últimos 3 meses)", "\\quad Dejaron de tomarlo",                                       "2,5,8",
+  "Medicamentos (últimos 3 meses)", "\\quad Esperaron a que la EPS lo entregara",                      "4",
+  "Renuncia a la atención",       "Necesitó atención y no la buscó (por demora en las citas)",          "7",
+  "Renuncia a la atención",       "No buscó atención por falta de dinero",                              "",
+  "Renuncia a la atención",       "Sin dinero, lo primero que deja es ir al médico o comprar comida",   "4,8",
+  "Afrontamiento",                "Tuvo un gasto grande en salud",                                     "1,3,4,7,8",
+  "Afrontamiento",                "Lo pagó con ahorros",                                               "1,3,7",
+  "Afrontamiento",                "Lo pagó con préstamos de familiares o crédito bancario",             "1,7,8",
+  "Afrontamiento",                "Recibió ayuda de una iglesia o fundación",                           "4,5",
+  "Afrontamiento",                "Dejó de pagar comida",                                              "8",
+  "Lo que cambiaría del sistema", "Que entreguen todos los medicamentos",                              "1,2,3,4,7,8",
+  "Lo que cambiaría del sistema", "Citas más rápidas",                                                 "2,3,4,5,6,8",
+  "Lo que cambiaría del sistema", "Atención en casa para la persona mayor",                            "3,4,5,7",
+  "Lo que cambiaría del sistema", "Que no cobren cuotas ni copagos",                                   "4,5,7",
+  "Lo que cambiaría del sistema", "Facilitar el paso al subsidiado",                                   "4") |>
+  mutate(k = map_int(str_split(ids, ","), \(x) sum(nzchar(x))))
+kr <- function(r) resp$k[resp$Respuesta == r]
+```
+
+# Introducción
+
+Una enfermedad es un choque incierto sobre el presupuesto del hogar: si
+el pago directo por atención es elevado frente a los recursos
+disponibles, compromete el resto de su consumo y se denomina gasto
+catastrófico cuando supera un umbral (Xu et al., 2003). Sin embargo, el
+gasto catastrófico es solo el caso extremo de un problema más amplio: un
+sistema de salud ofrece protección financiera cuando las personas
+reciben la atención que necesitan sin tener que pagarla de su bolsillo
+en condiciones que comprometan su bienestar (WHO, 2010).
+
+En Colombia, el riesgo varía según el régimen, el ingreso y la
+composición del hogar (Amaya-Lara, 2016; Pérez-Valbuena & Silva-Ureña,
+2015). Este trabajo estudia qué características de los hogares de La
+Candelaria (Medellín) se asocian con mayor probabilidad de pagar de
+bolsillo por salud, con la Encuesta de Calidad de Vida (ECV) de Medellín
+2025 (Alcaldía de Medellín, 2026).
+
+Interesan los hogares con menos margen para absorber un gasto médico,
+pues un mismo pago pesa más sobre un presupuesto reducido. Esa
+vulnerabilidad varía entre regiones (Amaya-Lara, 2016) y departamentos
+(Ramírez-Agudelo & Pinilla-Roncancio, 2023); acotar el análisis a una
+comuna mantiene constante el contexto territorial.
+
+La Candelaria, en el centro de Medellín, debería enfrentar menores
+barreras geográficas de acceso. Sin embargo, la ECV 2025 la ubica entre
+los tres territorios con mayor déficit habitacional (Alcaldía de
+Medellín, 2026), señal de recursos restringidos, y es una de las comunas
+más envejecidas de la ciudad; resulta apropiada para examinar si la
+cercanía a los servicios evita el riesgo financiero. La pregunta de
+investigación es:
+
+> **¿El problema de los hogares de La Candelaria frente al gasto en
+> salud es el caso extremo del gasto catastrófico o una falta más amplia
+> de protección financiera? ¿Qué características aumentan la
+> probabilidad de que un hogar pague de su bolsillo por salud, y qué
+> papel cumple el régimen subsidiado?**
+
+# Revisión de literatura
+
+El gasto de bolsillo es el pago directo del hogar por atención médica;
+se distingue del empobrecimiento, que lo lleva bajo la línea de pobreza
+(Wagstaff & van Doorslaer, 2003). La protección financiera es uno de los
+objetivos de la cobertura universal en salud (WHO, 2010). En 133 países,
+la cobertura por seguro o servicios públicos resultó un indicador débil
+de protección financiera (Wagstaff et al., 2018).
+
+La medición condiciona qué hogares resultan catastróficos. Una forma
+compara el gasto con la capacidad de pago, con umbrales de 40 % (Xu et
+al., 2003), 30 % (Alvis-Zakzuk et al., 2018) o 20 % (Amaya-Lara, 2016;
+Pérez-Valbuena & Silva-Ureña, 2015; Ramírez-Agudelo & Pinilla-Roncancio,
+2023); otra, con el consumo total, como el ODS 3.8.2, con 10 % y 25 %
+(World Bank & WHO, s. f.). Como los denominadores difieren, los umbrales
+no son equivalentes: en 14 países europeos, el método presupuestal
+concentró el gasto catastrófico en hogares ricos y uno normativo, en el
+quintil más pobre (Cylus et al., 2018). Además, la medida depende de que
+el consumo del hogar esté bien medido: si el denominador omite rubros
+como la vivienda, el gasto catastrófico se sobreestima.
+
+Los determinantes se agrupan en tres mecanismos. El primero es la
+necesidad de atención: en América Latina, los adultos mayores, el
+quintil más pobre y la falta de seguro se asocian con mayor probabilidad
+de gasto catastrófico (Knaul et al., 2011), y en Colombia los adultos de
+65 años o más, con mayor carga del gasto de bolsillo (Pérez-Valbuena &
+Silva-Ureña, 2015). El segundo es la capacidad de pago, que depende del
+ingreso y del empleo. En Cartagena, los hogares pobres gastaron menos,
+pero su probabilidad de gasto catastrófico fue 30,6 % frente a 8,6 % en
+estrato alto (Alvis-Zakzuk et al., 2018).
+
+El tercer mecanismo es la protección financiera, con evidencia
+heterogénea: la afiliación no basta, pues en China ciertos seguros
+aumentaron la probabilidad de gasto alto o catastrófico (Wagstaff &
+Lindelow, 2008). En Colombia, Amaya-Lara (2016) estima un probit y
+obtiene coeficientes positivos, frente al contributivo, para el régimen
+subsidiado (0,306) y los no asegurados; Pérez-Valbuena y Silva-Ureña
+(2015) hallan un coeficiente negativo del subsidiado en la probabilidad
+de algún gasto y no significativo en la carga entre quienes pagan.
+
+Amaya-Lara (2016) reporta coeficientes probit sin efectos marginales y
+agrupa niños y adultos mayores en una variable; Pérez-Valbuena y
+Silva-Ureña (2015) modelan la probabilidad de algún gasto y su carga, no
+la de superar el umbral; y Ramírez-Agudelo y Pinilla-Roncancio (2023)
+destacan factores departamentales. La decisión de gastar algo en salud
+se distingue de cuánto se gasta (Duan et al., 1983); este trabajo modela
+la primera, como Pérez-Valbuena y Silva-Ureña (2015).
+
+Con una variable dependiente binaria, el modelo principal es un probit,
+como en Amaya-Lara (2016) y Adisa (2015), que parte de una variable
+latente con error normal estándar:
+$P(Y_i = 1 \mid X_i) = \Phi(X_i'\beta)$, con $\Phi$ la normal estándar
+acumulada. Se interpretan efectos marginales promedio (Williams, 2012);
+el logit, usado por Alvis-Zakzuk et al. (2018) y Ramírez-Agudelo y
+Pinilla-Roncancio (2023), y los umbrales alternativos (Cylus et al.,
+2018) sirven de robustez. Los resultados son asociaciones, no efectos
+causales.
+
+En conjunto, la literatura indica que el gasto catastrófico depende de
+la necesidad de atención, la capacidad de pago y la protección
+financiera, aunque los estudios difieren en poblaciones, umbrales y
+variables dependientes, lo que limita su comparación. Este estudio
+aporta evidencia local para La Candelaria según la composición del
+hogar, la ocupación de sus miembros y la afiliación al régimen
+subsidiado, y distingue el caso extremo del gasto catastrófico de la
+falta más amplia de protección financiera.
+
+# Datos
+
+## Fuente y unidad de análisis
+
+Se usa exclusivamente la ECV de Medellín 2025. Cada registro es una
+persona; la encuesta identifica el hogar y su jefe. El análisis se hace
+por hogar, porque los gastos se reportan para el hogar completo, y las
+características de las personas se agregan por hogar. La muestra
+principal es La Candelaria (comuna 10), con `r f2(nrow(personas), 0)`
+personas en `r embudo[[1]][1]` hogares; las otras 15 comunas sirven de
+comparación y para calcular los cortes de la ciudad. Se excluyen los
+corregimientos. El factor de expansión de hogares es constante dentro de
+cada comuna y varía poco entre comunas (entre `r f2(fex_rango[1], 0)` y
+`r f2(fex_rango[2], 0)`), por lo que las estimaciones ponderadas y sin
+ponderar prácticamente coinciden.
+
+| Módulo de la ECV | Información usada | Cómo entra al análisis |
+|------------------------|------------------------|------------------------|
+| A. Identificación | Comuna (A.7), estrato (A.10), personas (A.14) | Muestra, per cápita y robustez |
+| B. Composición | Orden en el hogar (B.1), sexo (B.2), edad (B.6) | Adultos de 65 años o más |
+| F. Salud | Afiliación (F.1), enfermedad crónica (F.8) | Proporción en el subsidiado; control |
+| H. Trabajo | Situación laboral (H.31), pensión (H.20) | Hogar sin ocupados |
+| J. Vivienda | Tenencia (J.36) y gastos de vivienda (J.37 a J.52) | Consumo del hogar |
+| K. Gastos | Gastos mensuales (K.1 a K.10) y anuales (K.12 a K.19) | Gasto en salud y consumo del hogar |
+
+: Información de la ECV 2025 usada en el análisis
+
+## El consumo del hogar
+
+Para saber si un gasto en salud es grande frente a los recursos del
+hogar, primero hay que medir bien esos recursos. Se construye el consumo
+mensual del hogar con **todos los rubros de gasto de la ECV**, siguiendo
+las convenciones de Xu et al. (2003): se incluye el consumo y se
+excluyen los pagos de deuda y los impuestos, que no son consumo (Tabla
+2).
+
+```{r}
+#| label: tab-consumo
+comp <- hog |> summarise(`Gastos mensuales del módulo K` = median(g_k_mens),
+                         `Gastos anuales del módulo K (÷ 12)` = median(g_k_anual),
+                         `Arriendo pagado o estimado` = median(g_arriendo),
+                         `Otros gastos de vivienda` = median(g_viv_otros),
+                         `Consumo total` = median(g_consumo), .by = pobre) |>
+  pivot_longer(-pobre) |> pivot_wider(names_from = pobre, values_from = value)
+tabla(tibble(Componente = comp$name,
+             `Variables de la ECV` = c("K.1 a K.9 (incluye K.6 y K.7, salud)",
+                                       "K.12 a K.17: matrículas, uniformes, útiles, vestuario, muebles, vacaciones",
+                                       "J.37 si arrienda; J.39 (arriendo estimado) si no paga arriendo",
+                                       "Servicios, administración, seguros y reparaciones (J.40 a J.52)",
+                                       "Suma de los anteriores"),
+             `Pobres` = cop(comp$`1`), `No pobres` = cop(comp$`0`)),
+      "Componentes del consumo mensual del hogar (medianas en La Candelaria)") |>
+  row_spec(5, bold = TRUE) |>
+  footnote(general = paste("Se excluyen los intereses y gastos financieros (K.10), el impuesto vehicular (K.18),",
+                           "los pagos de préstamos (K.19), las cuotas e intereses de crédito de vivienda (J.38,",
+                           "J.47) y el impuesto predial (J.45). Los gastos anuales se dividen por 12. A los",
+                           "propietarios que pagan crédito, a quienes no se les pregunta J.39, se les asigna la",
+                           "mediana del arriendo estimado de los propietarios de su mismo estrato. Mediana de",
+                           "cada fila por separado."),
+           general_title = "", threeparttable = TRUE) |>
+  column_spec(2, width = "6.5cm")
+```
+
+El arriendo estimado de quienes viven en vivienda propia (J.39) es
+clave: sin él, un propietario parecería más pobre que un arrendatario
+con el mismo nivel de vida. Incluir la vivienda también evita un error
+de medición que, con solo el módulo K, sobreestima de forma grave el
+gasto catastrófico de los hogares pobres (sección 4.3).
+
+## Capacidad de pago, gasto catastrófico y pago de bolsillo
+
+**Pago de bolsillo (variable dependiente).** El gasto de bolsillo en
+salud es la suma de servicios médicos (K.6) y medicamentos (K.7) del
+último mes. El hogar *paga de bolsillo* si ese gasto es mayor que cero.
+Es la medida más directa de falta de protección financiera en un sistema
+de aseguramiento casi universal: todo pago es una parte de la atención
+que el seguro no cubrió.
+
+**Capacidad de pago y gasto catastrófico.** Se sigue el método de Xu et
+al. (2003), adoptado por la Organización Mundial de la Salud. Para cada
+hogar $i$:
+
+1.  Se calcula el tamaño equivalente
+    $\text{eq}_i = \text{personas}_i^{\,0,56}$, que reconoce que los
+    hogares grandes comparten gastos.
+2.  Se calcula la línea de subsistencia $\ell$: el gasto medio en
+    alimentos por persona equivalente de los hogares cuya participación
+    de alimentos en el consumo está entre los percentiles 45 y 55 de la
+    ciudad. El gasto de subsistencia del hogar es
+    $\text{sub}_i = \ell \cdot \text{eq}_i$.
+3.  La capacidad de pago es el consumo menos la subsistencia:
+
+$$\text{CP}_i =
+\begin{cases}
+C_i - \text{sub}_i & \text{si } \text{alimentos}_i \geq \text{sub}_i \\
+C_i - \text{alimentos}_i & \text{si } \text{alimentos}_i < \text{sub}_i
+\end{cases}
+\qquad
+\text{CAT}_i = \mathbf{1}\left[\frac{\text{K.6}_i + \text{K.7}_i}{\text{CP}_i} > 0{,}40\right]$$
+
+La línea de subsistencia es de `r cop(lin_sub)` por persona equivalente
+al mes. Se reportan también los umbrales de 20 % y 25 % de la capacidad
+de pago, y los del indicador ODS 3.8.2 (10 % y 25 % del consumo total).
+Un hogar se **empobrece** por salud si su consumo supera la
+subsistencia, pero el consumo que le queda después de pagar salud no
+(Wagstaff & van Doorslaer, 2003).
+
+## Hogares pobres
+
+Un hogar es **pobre** si pertenece al 40 % de hogares de Medellín con
+menor consumo per cápita, sin contar el gasto en salud. Es una medida de
+pobreza *relativa*, construida solo con la ECV:
+
+$$c_i = \frac{C_i - (\text{K.6}_i + \text{K.7}_i)}{\text{personas}_i},
+\qquad
+\text{pobre}_i = \mathbf{1}\left[c_i \leq P_{40}(c)\right]$$
+
+donde $C_i$ es el consumo de la Tabla 2 y $P_{40}(c)$ el percentil 40 de
+$c$ en los `r f2(nrow(med), 0)` hogares de las 16 comunas, igual a
+`r cop(corte_pobre)` por persona al mes. Con él, `r sum(hog$pobre)` de
+los `r nrow(hog)` hogares de La Candelaria (`r pp(mean(hog$pobre))` %)
+son pobres.
+
+- **Por qué una medida relativa.** La pobreza monetaria oficial del DANE
+  se calcula con el ingreso de otra encuesta (la Gran Encuesta Integrada
+  de Hogares) y no puede replicarse con la ECV.
+- **En qué se basa el 40 %.** Es el grupo con el que el Banco Mundial
+  mide la prosperidad compartida (World Bank, 2016) y el que fija la
+  meta 10.1 de los Objetivos de Desarrollo Sostenible (Naciones Unidas,
+  2015); aquí se aplica a hogares. Coincide con los dos quintiles
+  inferiores y deja suficientes hogares pobres para estimar el modelo.
+- **Por qué consumo per cápita sin salud.** El consumo es una medida de
+  bienestar más estable que el ingreso de un mes. Se divide por el
+  número de personas porque un mismo gasto alcanza menos en un hogar
+  grande, y se excluye la salud para no clasificar al hogar con el mismo
+  gasto que se quiere explicar.
+- **Por qué el corte se calcula con toda la ciudad.** Así "pobre"
+  significa lo mismo en La Candelaria y en el resto de Medellín, y la
+  comparación entre ambas es válida.
+
+El corte es convencional; la sección 9 repite el modelo con cuatro
+definiciones alternativas.
+
+## Limpieza
+
+Antes del análisis se limpió la encuesta completa: las `r ncol(ecv_raw)`
+variables se renombraron con el diccionario de datos, y los códigos de
+no respuesta, no sabe y no aplica (`r f2(sum(n_esp), 0)` valores en
+`r sum(n_esp > 0)` variables) se convirtieron en valores faltantes. Cada
+hogar tiene un único jefe y no hay personas duplicadas. Se excluyeron,
+con la misma regla en toda la ciudad, los hogares sin gastos mensuales,
+los que reportan menos de \$50.000 mensuales en alimentos (señal de un
+módulo de gasto mal diligenciado) y los que no tienen ocupados pero
+tienen miembros sin respuesta laboral (Tabla 3).
+
+```{r}
+#| label: tab-embudo
+tabla(tibble(Paso = c("Hogares en la encuesta", "Excluye: sin gastos mensuales",
+                      "Excluye: alimentos menores a \\$50.000", "Excluye: situación laboral desconocida",
+                      "Muestra de análisis"),
+             `La Candelaria` = c(embudo[[1]][1], diff(map_int(embudo, 1)), embudo[[4]][1]),
+             `16 comunas de Medellín` = c(embudo[[1]][2], diff(map_int(embudo, 2)), embudo[[4]][2])),
+      "Construcción de la muestra de análisis (hogares)")
+```
+
+# Estadísticas descriptivas
+
+## La comuna
+
+```{r}
+#| label: fig-poblacion
+#| fig-cap: "Estructura por edad y régimen de afiliación de los residentes de La Candelaria"
+#| fig-height: 2.6
+pir <- personas |>
+  mutate(grupo = cut(edad, c(seq(-1, 79, 10), Inf),
+                     labels = c("0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+")),
+         sexo = if_else(sexo == 2, "Mujeres", "Hombres")) |>
+  count(grupo, sexo) |> mutate(p = n / sum(n), p = if_else(sexo == "Hombres", -p, p))
+g1 <- ggplot(pir, aes(p * 100, grupo, fill = sexo)) + geom_col(width = 0.8) +
+  geom_vline(xintercept = 0, color = col_txt, linewidth = 0.3) +
+  scale_x_continuous(labels = \(x) paste0(abs(x), " %")) +
+  scale_fill_manual(values = c(Hombres = pal[["azul"]], Mujeres = pal[["naranja"]]), name = NULL) +
+  labs(x = "% de los residentes", y = "Edad (años)", title = "A. Pirámide de población") +
+  theme(legend.position = "bottom")
+reg <- personas |>
+  mutate(regimen = case_when(afiliacion_salud %in% 1:2 ~ "Contributivo", afiliacion_salud == 3 ~ "Subsidiado",
+                             afiliacion_salud %in% 4:7 ~ "Especial o sin afiliación"),
+         edad_g = cut(edad, c(-1, 14, 29, 44, 64, Inf), labels = c("0-14", "15-29", "30-44", "45-64", "65+"))) |>
+  filter(!is.na(regimen)) |> count(edad_g, regimen) |> mutate(p = n / sum(n), .by = edad_g) |>
+  mutate(regimen = factor(regimen, c("Contributivo", "Subsidiado", "Especial o sin afiliación")))
+g2 <- ggplot(reg, aes(edad_g, p * 100, fill = regimen)) + geom_col(width = 0.7, color = "white", linewidth = 0.3) +
+  scale_fill_manual(values = unname(pal), name = NULL) +
+  labs(x = "Edad (años)", y = "% de las personas", title = "B. Régimen de afiliación por edad") +
+  theme(legend.position = "bottom")
+g1 + g2
+p65_per <- mean(personas$edad >= 65, na.rm = TRUE)
+sub_65  <- with(filter(personas, edad >= 65), mean(afiliacion_salud %in% 3))
+con_65  <- with(filter(personas, edad >= 65), mean(afiliacion_salud %in% 1:2))
+```
+
+```{r}
+ggsave("piramide_candelaria.png", width = 8, height = 6)
+```
+
+La Candelaria es una comuna envejecida: la mitad de sus residentes tiene
+más de `r median(personas$edad)` años, el `r pp(p65_per)` % supera los
+65 y solo el `r pp(mean(personas$edad < 15))` % es menor de 15
+(@fig-poblacion). Entre los adultos mayores, el `r pp(con_65)` % está en
+el contributivo, que paga cuotas moderadoras y copagos, y el
+`r pp(sub_65)` % en el subsidiado. El `r pp(mean(hog$adm))` % de los
+hogares tiene al menos un adulto mayor.
+
+## Del aseguramiento al pago de bolsillo
+
+```{r}
+#| label: fig-cascada
+#| fig-cap: "Del aseguramiento al pago de bolsillo: proporción de hogares en cada etapa (A) y pago de bolsillo por comuna (B)"
+#| fig-height: 3.1
+inc <- function(v, d = hog) mean(d[[v]])
+etapas <- c("Todos sus miembros\nafiliados a salud", "Pagaron de bolsillo\npor salud en el mes",
+            "Compraron\nmedicamentos", "Gasto > 20 % de la\ncapacidad de pago", "Gasto catastrófico\n(> 40 %)")
+casc <- tibble(paso = factor(etapas, rev(etapas)),
+               v = c(inc("todos_afil"), inc("paga"), inc("paga_med"), inc("cat20"), inc("cat40")),
+               tipo = c("base", "pago", "pago", "extremo", "extremo"))
+gA <- ggplot(casc, aes(100 * v, paso, fill = tipo)) +
+  geom_col(width = 0.65) +
+  geom_text(aes(label = paste0(pp(v), " %")), hjust = -0.15, size = 2.6, color = col_txt) +
+  scale_fill_manual(values = c(base = azules[2], pago = pal[["azul"]], extremo = pal[["naranja"]]), guide = "none") +
+  scale_x_continuous(limits = c(0, 112), breaks = seq(0, 100, 25), expand = c(0, 0)) +
+  labs(x = "% de los hogares de La Candelaria", y = NULL, title = "A. Del aseguramiento al pago") +
+  theme(panel.grid.major.y = element_blank())
+nombres_com <- c("Popular", "Santa Cruz", "Manrique", "Aranjuez", "Castilla", "Doce de Octubre", "Robledo",
+                 "Villa Hermosa", "Buenos Aires", "La Candelaria", "Laureles-Estadio", "La América",
+                 "San Javier", "El Poblado", "Guayabal", "Belén")
+com <- med |> summarise(k = sum(paga), n = n(), .by = comuna) |>
+  mutate(inc = k / n, lo = map2_dbl(k, n, \(k, n) ci(k, n)[1]), hi = map2_dbl(k, n, \(k, n) ci(k, n)[2]),
+         nombre = factor(nombres_com[comuna], nombres_com[comuna][order(inc)]), cand = comuna == 10)
+gB <- ggplot(com, aes(100 * inc, nombre, color = cand)) +
+  geom_vline(xintercept = 100 * inc("paga", med), linetype = "dashed", color = col_txt, linewidth = 0.3) +
+  geom_errorbarh(aes(xmin = 100 * lo, xmax = 100 * hi), height = 0, linewidth = 0.4) +
+  geom_point(size = 1.6) +
+  scale_color_manual(values = c(`FALSE` = azules[4], `TRUE` = pal[["naranja"]]), guide = "none") +
+  labs(x = "% de hogares que pagan de bolsillo (IC 95 %)", y = NULL, title = "B. Pago de bolsillo por comuna") +
+  theme(axis.text.y = element_text(size = 6, face = ifelse(levels(com$nombre) == "La Candelaria", "bold", "plain")))
+gA + gB + plot_layout(widths = c(1.1, 1))
+rk <- rank(-com$inc)[com$comuna == 10]
+```
+
+La @fig-cascada (panel A) resume la historia del trabajo. El
+`r pp(inc("todos_afil"))` % de los hogares de La Candelaria tiene a
+todos sus miembros afiliados a salud; aun así, el `r pp(inc("paga"))` %
+pagó de su bolsillo por salud en el último mes y el
+`r pp(inc("paga_med"))` % compró medicamentos. En cambio, solo el
+`r pp(inc("cat20"))` % gastó más del 20 % de su capacidad de pago y el
+`r pp(inc("cat40"))` % tuvo gasto catastrófico. La desprotección no es
+una catástrofe masiva, sino un pago cotidiano a pesar de estar
+afiliados. El panel B muestra que no es un rasgo exclusivo de la comuna:
+en Medellín paga el `r pp(inc("paga", med))` % de los hogares, y La
+Candelaria ocupa el puesto `r rk` entre las 16 comunas.
+
+```{r}
+ggsave("figura_cascada.png", width = 8, height = 6, dpi = 300)
+```
+
+
+## Base ancha y cola corta
+
+```{r}
+#| label: tab-medidas
+fila_m <- function(v) c(pp(mean(hog[[v]])), sum(hog[[v]]), pp(mean(pob[[v]])), pp(mean(med[[v]])))
+medidas <- tribble(
+  ~v, ~Medida,
+  "paga",      "Pagó de bolsillo por salud en el mes",
+  "paga_med",  "Pagó medicamentos",
+  "ods10",     "Gasto en salud > 10 \\% del consumo (ODS 3.8.2)",
+  "ods25",     "Gasto en salud > 25 \\% del consumo (ODS 3.8.2)",
+  "cat20",     "Gasto en salud > 20 \\% de la capacidad de pago",
+  "cat25",     "Gasto en salud > 25 \\% de la capacidad de pago",
+  "cat40",     "Gasto catastrófico: > 40 \\% de la capacidad de pago",
+  "empobrece", "Empobrecimiento por salud",
+  "cat40_k",   "> 40 \\% de la capacidad de pago, con solo el módulo K")
+tm <- map_dfr(medidas$v, \(v) set_names(as.list(fila_m(v)), c("a", "b", "c", "d")))
+tabla(bind_cols(select(medidas, Medida), tm) |> rename(`\\% hogares` = a, Hogares = b, `\\% hogares pobres` = c,
+                                                         `\\% Medellín` = d),
+      "Incidencia de cada medida de falta de protección financiera") |>
+  add_header_above(c(" " = 1, "La Candelaria" = 3, " " = 1)) |>
+  pack_rows("Falta de protección", 1, 2) |> pack_rows("Carga alta y caso extremo", 3, 8) |>
+  pack_rows("Error de medición (no usar)", 9, 9) |> row_spec(7, bold = TRUE)
+```
+
+
+La Tabla 4 reúne todas las medidas. Sea cual sea el umbral, la
+incidencia de la carga alta no supera el
+`r pp(max(inc("cat20"), inc("ods10")))` %, y el patrón es el mismo en la
+ciudad (`r pp(inc("paga", med))` % paga; `r pp(inc("cat40", med))` %
+tiene gasto catastrófico). La última fila muestra por qué la medición
+importa: si el consumo se mide solo con el módulo K, que omite la
+vivienda y los gastos anuales, el `r pp(inc("cat40_k"))` % de los
+hogares parecería tener gasto catastrófico, porque para un hogar que
+solo reporta alimentos en ese módulo la "capacidad de pago" se reduce
+casi a lo que gastó en salud.
+
+```{r}
+#| label: fig-umbral
+#| fig-cap: "Proporción de hogares cuyo gasto en salud supera cada umbral de la capacidad de pago"
+#| fig-height: 2.7
+umbrales <- c(0, 0.10, 0.20, 0.30, 0.40)
+umb <- expand_grid(t = umbrales, terr = c("La Candelaria", "Medellín")) |>
+  mutate(inc = map2_dbl(t, terr, \(t, g) { d <- if (g == "Medellín") med else hog; mean(d$sh_ctp > t) }))
+ggplot(umb, aes(100 * t, 100 * inc, color = terr)) +
+  geom_vline(xintercept = 40, linetype = "dashed", color = col_txt, linewidth = 0.3) +
+  geom_line(linewidth = 0.8) + geom_point(size = 2.2) +
+  geom_label(data = filter(umb, terr == "La Candelaria"), aes(label = paste0(pp(inc), " %")),
+             nudge_y = 4.5, size = 2.6, color = pal[["naranja"]], fill = "white", label.size = 0,
+             label.padding = unit(1, "pt"), show.legend = FALSE) +
+  annotate("text", x = 1.5, y = 47, label = "Base ancha: pagó algo", hjust = 0, size = 2.5, color = col_txt) +
+  annotate("text", x = 38.5, y = 12, label = "Cola corta:\ngasto catastrófico", hjust = 1, size = 2.5, color = col_txt) +
+  scale_color_manual(values = c(`La Candelaria` = pal[["naranja"]], Medellín = pal[["azul"]]), name = NULL) +
+  scale_x_continuous(breaks = 100 * umbrales, labels = c("0 %\n(pagó algo)", "10 %", "20 %", "30 %", "40 %\n(catastrófico)")) +
+  scale_y_continuous(limits = c(0, 50)) +
+  labs(x = "Umbral (% de la capacidad de pago)", y = "% de hogares que lo superan") +
+  theme(legend.position = "top")
+ut <- function(t) mean(hog$sh_ctp > t)
+```
+
+La @fig-umbral muestra la forma del problema. La línea arranca en
+`r pp(ut(0))` % (pagó algo), cae a `r pp(ut(0.10))` % en el umbral de 10
+% de la capacidad de pago, a `r pp(ut(0.20))` % en el de 20 % y termina
+en `r pp(ut(0.40))` % en el umbral de gasto catastrófico. Es una base
+ancha de hogares que pagan poco y una cola corta de hogares que pagan
+mucho: el aseguramiento evita los pagos muy grandes, pero no evita que
+muchos hogares paguen.
+
+## Quién paga
+
+```{r}
+#| label: fig-adultos
+#| fig-cap: "Frecuencia (A) y monto (B) del pago de bolsillo en salud en hogares con y sin adultos de 65 años o más (La Candelaria)"
+#| fig-height: 2.5
+ad <- hog |> mutate(g = factor(if_else(adm == 1, "Con adulto de 65+", "Sin adulto de 65+"),
+                               c("Sin adulto de 65+", "Con adulto de 65+")))
+fa <- ad |> summarise(k = sum(paga), n = n(), .by = g) |>
+  mutate(p = k / n, lo = map2_dbl(k, n, \(k, n) ci(k, n)[1]), hi = map2_dbl(k, n, \(k, n) ci(k, n)[2]))
+ma <- ad |> filter(paga == 1) |> summarise(med = median(g_salud), q1 = quantile(g_salud, 0.25),
+                                           q3 = quantile(g_salud, 0.75), .by = g)
+colg <- c(`Sin adulto de 65+` = azules[3], `Con adulto de 65+` = pal[["naranja"]])
+pA <- ggplot(fa, aes(g, 100 * p, fill = g)) + geom_col(width = 0.55) +
+  geom_errorbar(aes(ymin = 100 * lo, ymax = 100 * hi), width = 0.12, color = col_txt, linewidth = 0.3) +
+  geom_text(aes(y = 100 * hi, label = paste0(pp(p), " %")), vjust = -0.6, size = 2.7, color = col_txt) +
+  scale_fill_manual(values = colg, guide = "none") + scale_y_continuous(limits = c(0, 75)) +
+  labs(x = NULL, y = "% de hogares que pagan", title = "A. ¿Con qué frecuencia pagan?")
+pB <- ggplot(ma, aes(g, med / 1000, color = g)) +
+  geom_linerange(aes(ymin = q1 / 1000, ymax = q3 / 1000), linewidth = 3, alpha = 0.3) +
+  geom_point(size = 2.6) +
+  geom_text(aes(label = cop(med) |> str_remove_all("\\\\")), hjust = -0.35, size = 2.7, color = col_txt) +
+  scale_color_manual(values = colg, guide = "none") +
+  labs(x = NULL, y = "Pago mensual (miles de pesos)", title = "B. ¿Cuánto pagan quienes pagan?",
+       caption = "Punto: mediana; barra: percentiles 25 a 75.")
+pA + pB
+fr <- function(a, f) f(filter(hog, adm == a))
+```
+
+La @fig-adultos compara frecuencia y monto. Los hogares con un adulto de
+65 años o más pagan de su bolsillo con casi el doble de frecuencia
+(`r pp(fr(1, \(d) mean(d$paga)))` % frente a
+`r pp(fr(0, \(d) mean(d$paga)))` %) y, cuando pagan, su pago mediano
+triplica el de los demás
+(`r cop(fr(1, \(d) median(d$g_salud[d$paga == 1])))` frente a
+`r cop(fr(0, \(d) median(d$g_salud[d$paga == 1])))`). La presencia de un
+adulto mayor es la característica que más separa a los hogares que pagan
+de los que no.
+
+```{r}
+#| label: tab-quien
+grupo_t <- function(d, nombre) d |> summarise(
+  Hogares = n(), `Paga (\\%)` = pp(mean(paga)), `Medicamentos (\\%)` = pp(mean(g_meds > 0)),
+  `Servicios médicos (\\%)` = pp(mean(g_smed > 0)),
+  `Pago mediano si paga` = cop(median(g_salud[g_salud > 0])),
+  `Pago / consumo, si paga (\\%)` = pp(median(sh_cons[g_salud > 0]))) |> mutate(Grupo = nombre, .before = 1)
+quien <- bind_rows(
+  grupo_t(filter(hog, adm == 1), "Con adulto de 65+"), grupo_t(filter(hog, adm == 0), "Sin adulto de 65+"),
+  grupo_t(filter(hog, pobre == 1), "Pobres"), grupo_t(filter(hog, pobre == 0), "No pobres"),
+  grupo_t(filter(hog, subs_any == 0), "Nadie en el subsidiado"), grupo_t(filter(hog, subs_any == 1), "Alguien en el subsidiado"),
+  grupo_t(hog, "Todos"))
+tabla(quien, "Pago de bolsillo en salud en La Candelaria según características del hogar") |>
+  pack_rows("Adultos mayores", 1, 2) |> pack_rows("Pobreza", 3, 4) |> pack_rows("Régimen", 5, 6) |>
+  row_spec(7, bold = TRUE)
+```
+
+La Tabla 5 amplía la comparación. Los hogares pobres pagan con menos
+frecuencia y montos más bajos que los no pobres, y los hogares con
+alguien en el subsidiado pagan menos que los que tienen a todos en el
+contributivo (`r pp(mean(hog$paga[hog$subs_any == 1]))` % frente a
+`r pp(mean(hog$paga[hog$subs_any == 0]))` %). Para quienes pagan, el
+pago mediano equivale al `r pp(median(hog$sh_cons[hog$paga == 1]))` % de
+su consumo: no es catastrófico, pero es un gasto que el seguro no
+cubrió.
+
+```{r}
+#| label: fig-celdas
+#| fig-cap: "Proporción de hogares que pagan de bolsillo por salud, según adultos mayores, régimen y pobreza (La Candelaria)"
+#| fig-height: 2.4
+celdas <- hog |>
+  mutate(`Adulto de 65+` = if_else(adm == 1, "Sí", "No"),
+         Régimen = if_else(subs_any == 1, "Alguno en el\nsubsidiado", "Ninguno en el\nsubsidiado"),
+         Grupo = if_else(pobre == 1, "A. Hogares pobres", "B. Hogares no pobres")) |>
+  summarise(n = n(), inc = mean(paga), .by = c(Grupo, `Adulto de 65+`, Régimen))
+ggplot(celdas, aes(Régimen, `Adulto de 65+`, fill = 100 * inc)) +
+  geom_tile(color = "white", linewidth = 1) +
+  geom_text(aes(label = paste0(f2(100 * inc, 1), " %\n(n = ", n, ")"), color = inc > 0.45), size = 2.5,
+            show.legend = FALSE) +
+  facet_wrap(~Grupo) +
+  scale_color_manual(values = c(`FALSE` = "grey15", `TRUE` = "white")) +
+  scale_fill_gradientn(colours = azules, limits = c(0, 80), guide = "none") +
+  labs(x = NULL) + theme(panel.grid = element_blank())
+cel <- function(g, a, s) celdas$inc[celdas$Grupo == g & celdas$`Adulto de 65+` == a & grepl(s, celdas$Régimen)]
+```
+```{r}
+ggsave("mapa_calor.png", width = 8, height = 6, dpi = 300)
+```
+La @fig-celdas cruza las tres características. Entre los hogares pobres
+con adultos mayores, paga de bolsillo el
+`r pp(cel("A. Hogares pobres", "Sí", "Ninguno"))` % de los que no tienen
+a nadie en el subsidiado, frente al
+`r pp(cel("A. Hogares pobres", "Sí", "Alguno"))` % de los que sí. Estas
+cifras no controlan por otras características; el modelo lo hace.
+
+## En qué se paga
+
+```{r}
+#| label: fig-rubros
+#| fig-cap: "Composición del pago de bolsillo en salud: por hogares que pagan y por pesos pagados (La Candelaria)"
+#| fig-height: 1.9
+pg <- filter(hog, paga == 1)
+rub <- bind_rows(
+  tibble(barra = paste0("Hogares que pagan\n(", nrow(pg), " hogares)"),
+         cat = c("Solo medicamentos", "Medicamentos y servicios", "Solo servicios médicos"),
+         v = c(mean(pg$g_meds > 0 & pg$g_smed == 0), mean(pg$g_meds > 0 & pg$g_smed > 0), mean(pg$g_meds == 0 & pg$g_smed > 0))),
+  tibble(barra = "Pesos pagados", cat = c("Solo medicamentos", "Solo servicios médicos"),
+         v = c(sum(hog$g_meds), sum(hog$g_smed)) / sum(hog$g_salud))) |>
+  mutate(cat = factor(cat, c("Solo medicamentos", "Medicamentos y servicios", "Solo servicios médicos")),
+         barra = factor(barra, rev(unique(barra))))
+ggplot(rub, aes(100 * v, barra, fill = cat)) +
+  geom_col(width = 0.6, color = "white", linewidth = 0.6, position = position_stack(reverse = TRUE)) +
+  geom_text(aes(label = paste0(pp(v), " %")), position = position_stack(vjust = 0.5, reverse = TRUE),
+            size = 2.6, color = "white") +
+  scale_fill_manual(values = c(`Solo medicamentos` = pal[["naranja"]], `Medicamentos y servicios` = azules[5],
+                               `Solo servicios médicos` = pal[["azul"]]),
+                    labels = c("Medicamentos", "Medicamentos y servicios", "Servicios médicos"), name = NULL) +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(x = "% del total", y = NULL) + theme(legend.position = "top", panel.grid = element_blank())
+sm <- mean(pg$g_meds > 0 & pg$g_smed == 0); con_med <- mean(pg$g_meds > 0)
+```
+
+La @fig-rubros muestra en qué se paga. El `r pp(sm)` % de los hogares
+que pagan solo compró medicamentos, y el `r pp(con_med)` % compró
+medicamentos, solos o junto con servicios: es, con diferencia, el pago
+más frecuente. En pesos, en cambio, los servicios médicos concentran el
+`r pp(sum(hog$g_smed) / sum(hog$g_salud))` % del gasto, porque son pagos
+menos frecuentes pero más altos (consultas particulares, exámenes). Que
+los medicamentos, incluidos en el plan de beneficios, sean el pago más
+común sugiere fallas en su entrega por parte de las EPS. La ECV no
+permite confirmarlo; la encuesta cualitativa lo respalda (sección 10).
+
+# Metodología
+
+## Especificación
+
+Sea $y_i^*$ la propensión latente del hogar $i$ a pagar de bolsillo por
+salud. El modelo es un probit con una interacción entre la afiliación al
+subsidiado y la pobreza:
+
+$$y_i^* = \beta_0 + \beta_1\,\text{n65}_i + \beta_2\,\text{sinocup}_i + \beta_3\,\text{subs}_i
++ \beta_4\,\text{pobre}_i + \beta_5\,(\text{subs}_i \times \text{pobre}_i) + \varepsilon_i,
+\qquad \varepsilon_i \sim N(0, 1)$$
+
+donde n65 es el número de adultos de 65 años o más, sinocup vale 1 si
+ningún miembro está ocupado, subs es la proporción de miembros afiliados
+al subsidiado y pobre identifica al 40 % de menor consumo per cápita. Se
+observa $\text{PAGA}_i = 1$ si $y_i^* > 0$, de modo que
+
+$$P(\text{PAGA}_i = 1 \mid x_i) = \Phi(x_i'\beta),
+\qquad
+\ln L(\beta) = \sum_{i=1}^{n} \left[ \text{PAGA}_i \ln \Phi(x_i'\beta) + (1 - \text{PAGA}_i) \ln\left(1 - \Phi(x_i'\beta)\right) \right]$$
+
+Los parámetros se estiman por máxima verosimilitud con errores estándar
+robustos de Huber-White. El gasto catastrófico no se modela en La
+Candelaria porque, con `r sum(hog$cat40)` casos, un probit no puede
+estimarse; su análisis es descriptivo (sección 4.3).
+
+## Interpretación
+
+En un probit, el coeficiente de una interacción no mide cuánto cambia el
+efecto de una variable entre grupos: ese cambio depende de todas las
+variables y puede tener otro signo e incluso otra significancia (Ai &
+Norton, 2003). Por eso se reportan **efectos marginales promedio
+condicionales**: el efecto de cada variable sobre la probabilidad,
+promediado por separado en los hogares pobres y en los no pobres,
+
+$$\text{EMP}_k(g) = \frac{1}{n_g}\sum_{i \in g} \phi(x_i'\hat\beta)\,\frac{\partial (x_i'\hat\beta)}{\partial x_{ik}},
+\qquad g \in \{\text{pobres}, \text{no pobres}\}$$
+
+y probabilidades predichas para perfiles de hogar. Para sinocup se usa
+el cambio discreto de 0 a 1.
+
+| Variable | Qué mide | Por qué se incluye |
+|------------------------|------------------------|------------------------|
+| n65 | Número de adultos de 65 años o más | Necesidad de atención: enfermedades crónicas y medicamentos (Knaul et al., 2011) |
+| sinocup | 1 si ningún miembro está ocupado | Capacidad de pago: ausencia de ingreso laboral (Amaya-Lara, 2016) |
+| subs | Proporción de miembros en el subsidiado | Protección financiera: exención de cuotas moderadoras y copagos (Decreto 1652 de 2022) |
+| pobre | 1 si el hogar es pobre | Recursos del hogar; su interacción con subs indica si el régimen protege distinto a los pobres |
+
+: Variables explicativas del modelo
+
+**Comparación con la ciudad.** Para saber si el patrón es propio de La
+Candelaria, se estima el mismo probit en las otras 15 comunas, con
+efectos fijos de comuna. **Alcance.** Los resultados son asociaciones
+condicionales, no efectos causales: la afiliación al subsidiado depende
+del SISBÉN, y un hogar puede no tener ocupados por problemas de salud.
+Además, no pagar puede reflejar protección o renuncia a la atención; la
+encuesta cualitativa explora esa diferencia.
+
+## Componente cualitativo
+
+El modelo identifica qué hogares pagan, pero no por qué pagan ni qué
+significa no pagar. Para abordar esas dos preguntas, que la ECV no
+permite responder, se complementa el análisis econométrico con una
+encuesta a hogares de La Candelaria. El instrumento tiene 17 preguntas
+cerradas organizadas en seis módulos, cada uno asociado a un mecanismo
+del modelo: caracterización del hogar; necesidad de atención y adultos
+mayores; afiliación, copagos y cuotas moderadoras; entrega de
+medicamentos; renuncia a la atención; y estrategias de afrontamiento del
+gasto. Los hogares se eligieron de forma intencional, a partir de los
+perfiles del modelo, y se entrevistaron ocho hogares. Las respuestas se
+analizan como frecuencias por hogar y se contrastan con los resultados
+de la ECV (sección 10). Por el tamaño y el tipo de muestra, la encuesta
+no permite inferencia estadística ni generalizar a la comuna: su función
+es ilustrar e interpretar los mecanismos detrás de las asociaciones
+estimadas.
+
+# Resultados
+
+## Estimación
+
+```{r}
+#| label: modelos
+f_ppal <- paga ~ n65 + sinocup + sh_subs * pobre
+m_ppal <- probit(f_ppal, hog)
+m_rest <- probit(update(f_ppal, . ~ . + factor(comuna)), filter(med, cand == 0))
+
+coef_rob <- function(m) coeftest(m, vcov. = vcovHC(m, type = "HC0"))
+celda <- function(ct, t, d = 3) if (t %in% rownames(ct))
+  c(paste0(f2(ct[t, 1], d), estrellas(ct[t, 4])), paste0("(", f2(ct[t, 2], d), ")")) else c("", "")
+terms <- c(n65 = "Adultos de 65+ (número)", sinocup = "Hogar sin ocupados", sh_subs = "Proporción en el subsidiado",
+           pobre = "Pobre", `sh_subs:pobre` = "Subsidiado × pobre", `(Intercept)` = "Constante")
+cts  <- map(list(m_ppal, m_rest), coef_rob)
+ll0  <- function(m) { y <- m$y; p <- mean(y); sum(y * log(p) + (1 - y) * log(1 - p)) }
+mcf  <- function(m) 1 - as.numeric(logLik(m)) / ll0(m)
+cuerpo <- map_dfr(names(terms), \(t) { v <- map(cts, \(ct) celda(ct, t)); tibble(` ` = c(terms[t], ""), m1 = v[[1]], m2 = v[[2]]) })
+pie <- tibble(` ` = c("Efectos fijos de comuna", "Observaciones (hogares)", "Hogares que pagan", "Pseudo-$R^2$ de McFadden"),
+              m1 = c("No", nrow(hog), sum(hog$paga), f2(mcf(m_ppal), 3)),
+              m2 = c("Sí", nobs(m_rest), sum(m_rest$y), f2(mcf(m_rest), 3)))
+kable(bind_rows(cuerpo, pie), format = "latex", booktabs = TRUE, escape = FALSE, align = "lcc", linesep = "",
+      col.names = c("", "(1)", "(2)"),
+      caption = "Probit: coeficientes de la probabilidad de pagar de bolsillo por salud") |>
+  add_header_above(c(" " = 1, "La Candelaria" = 1, "Resto de Medellín" = 1)) |>
+  row_spec(12, hline_after = TRUE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9, position = "center") |>
+  footnote(general = paste("Variable dependiente: el hogar pagó de bolsillo por salud (K.6 + K.7 > 0) en el último mes.",
+                           "Errores estándar robustos de Huber-White entre paréntesis. La columna (1) es el",
+                           "modelo principal. Los coeficientes de la interacción no se interpretan directamente",
+                           "(ver Tabla 8). $^{***}$ p < 0,01; $^{**}$ p < 0,05; $^{*}$ p < 0,1."),
+           general_title = "", escape = FALSE, threeparttable = TRUE)
+```
+```{r}
+ggsave("probabilidades_predichas.png", width = 8, height = 6, dpi = 300)
+```
+
+La Tabla 7 reporta los coeficientes. La columna (1) es el modelo
+principal, estimado con los hogares de La Candelaria; la columna (2)
+estima el mismo modelo en las otras 15 comunas. Como en un probit los
+coeficientes no miden magnitudes y la interacción no se lee
+directamente, la interpretación se hace con los efectos marginales de la
+Tabla 8.
+
+## Efectos marginales condicionales
+
+```{r}
+#| label: efectos
+ame_g <- function(m, d) avg_slopes(m, variables = c("n65", "sinocup", "sh_subs"), by = "pobre", newdata = d, vcov = "HC0")
+e_c <- ame_g(m_ppal, hog); e_r <- ame_g(m_rest, filter(med, cand == 0))
+ge  <- function(e, t, g, k = "estimate") e[[k]][e$term == t & e$pobre == g]
+fmt <- function(e, t, g) paste0(if_else(ge(e, t, g) > 0, "+", ""), pp(ge(e, t, g)), estrellas(ge(e, t, g, "p.value")),
+                                " (", pp(ge(e, t, g, "std.error")), ")")
+s_sub <- avg_slopes(m_ppal, variables = "sh_subs", by = "pobre", vcov = "HC0")
+w_dif <- as.numeric(s_sub$pobre == 1) - as.numeric(s_sub$pobre == 0)
+dif <- tryCatch(avg_slopes(m_ppal, variables = "sh_subs", by = "pobre", vcov = "HC0", hypothesis = w_dif),
+                error = function(e) NULL)
+if (is.null(dif)) {                                      # aproximación si falla la versión del paquete
+  est <- sum(w_dif * s_sub$estimate); se <- sqrt(sum(s_sub$std.error^2))
+  dif <- data.frame(estimate = est, std.error = se, p.value = 2 * pnorm(-abs(est / se)))
+}
+filas <- c(n65 = "Un adulto de 65+ más", sinocup = "Hogar sin ocupados (0 a 1)",
+           sh_subs = "Todo el hogar en el subsidiado (0 a 1)")
+tabla(tibble(Variable = filas,
+             `Pobres` = map_chr(names(filas), \(t) fmt(e_c, t, 1)), `No pobres` = map_chr(names(filas), \(t) fmt(e_c, t, 0)),
+             `Pobres ` = map_chr(names(filas), \(t) fmt(e_r, t, 1)), `No pobres ` = map_chr(names(filas), \(t) fmt(e_r, t, 0))),
+      "Efectos marginales promedio por grupo (puntos porcentuales)") |>
+  add_header_above(c(" " = 1, "La Candelaria" = 2, "Resto de Medellín" = 2)) |>
+  footnote(general = paste0("Probabilidad de pagar de bolsillo por salud. Errores estándar robustos entre paréntesis. ",
+                            "Diferencia del efecto del subsidiado entre pobres y no pobres en La Candelaria: ",
+                            pp(dif$estimate), " pp (p = ", fp(dif$p.value), "). ",
+                            "$^{***}$ p < 0,01; $^{**}$ p < 0,05; $^{*}$ p < 0,1."),
+           general_title = "", escape = FALSE, threeparttable = TRUE)
+```
+
+Sobre una probabilidad de pago de `r pp(mean(pob$paga))` % en los
+hogares pobres de la comuna (Tabla 8):
+
+- **Adultos mayores.** Cada adulto de 65 años o más aumenta la
+  probabilidad de que un hogar pobre pague de bolsillo en
+  `r pp(ge(e_c, "n65", 1))` puntos porcentuales (pp), y la de un no
+  pobre en `r pp(ge(e_c, "n65", 0))` pp. Es el resultado más estable:
+  también aparece en el resto de la ciudad.
+- **Hogar sin ocupados.** El efecto es positivo, pero pequeño y no
+  significativo (`r pp(ge(e_c, "sinocup", 1))` pp en los pobres): la
+  falta de ingreso laboral no cambia la probabilidad de pagar, aunque
+  puede cambiar cuánto pesa el pago.
+- **Régimen subsidiado.** En los hogares pobres, pasar de ningún miembro
+  a todos en el subsidiado se asocia con `r pp(-ge(e_c, "sh_subs", 1))`
+  pp menos de probabilidad de pagar (p =
+  `r fp(ge(e_c, "sh_subs", 1, "p.value"))`); en los no pobres, con
+  `r pp(-ge(e_c, "sh_subs", 0))` pp menos (p =
+  `r fp(ge(e_c, "sh_subs", 0, "p.value"))`). El efecto es mayor en los
+  pobres, pero la diferencia entre los dos grupos (`r pp(dif$estimate)`
+  pp) no es estadísticamente significativa (p = `r fp(dif$p.value)`).
+
+```{r}
+#| label: fig-perfiles
+#| fig-cap: "Probabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)"
+#| fig-height: 2.5
+pr <- predictions(m_ppal, newdata = datagrid(model = m_ppal, pobre = 1, n65 = 0:2, sinocup = c(0, 1), sh_subs = c(0, 1)),
+                  vcov = "HC0") |> as.data.frame() |>
+  mutate(Régimen = if_else(sh_subs == 1, "Todo el hogar en el subsidiado", "Todo el hogar en el contributivo"),
+         ocup = if_else(sinocup == 1, "Sin ocupados", "Con al menos un ocupado"))
+ggplot(pr, aes(factor(n65), 100 * estimate, color = Régimen)) +
+  geom_errorbar(aes(ymin = 100 * conf.low, ymax = 100 * conf.high), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
+  geom_point(size = 2, position = position_dodge(0.4)) +
+  facet_wrap(~ocup) +
+  scale_color_manual(values = c(pal[["naranja"]], pal[["azul"]]), name = NULL) +
+  labs(x = "Adultos de 65 años o más en el hogar", y = "Probabilidad (%)") + theme(legend.position = "top")
+pv <- function(n, s, o) 100 * pr$estimate[pr$n65 == n & pr$sh_subs == s & pr$sinocup == o]
+```
+
+La @fig-perfiles traduce el modelo a perfiles concretos. Un hogar pobre
+con un adulto mayor y sin ocupados paga de bolsillo con una probabilidad
+de `r f2(pv(1, 0, 1), 0)` % si está en el contributivo y de
+`r f2(pv(1, 1, 1), 0)` % si está en el subsidiado; con dos adultos
+mayores, de `r f2(pv(2, 0, 1), 0)` % y `r f2(pv(2, 1, 1), 0)` %.
+
+## Bondad de ajuste
+
+```{r}
+#| label: bondad
+yv <- hog$paga; pf <- fitted(m_ppal); base <- mean(yv)
+tasas <- function(k) { p <- pf >= k; y <- yv == 1; c(acierto = mean(p == y), sens = mean(p[y]), esp = mean(!p[!y])) }
+t05 <- tasas(0.5); tk <- tasas(base)
+auc <- (sum(rank(pf)[yv == 1]) - sum(yv) * (sum(yv) + 1) / 2) / (sum(yv) * sum(1 - yv))
+g_hl <- max(Filter(\(g) !anyDuplicated(quantile(pf, 0:g / g)), 5:10))
+hl   <- hoslem.test(yv, pf, g = g_hl)
+lr_g <- list(Df = c(NA, length(coef(m_ppal)) - 1), Chisq = c(NA, 2 * (as.numeric(logLik(m_ppal)) - ll0(m_ppal))))
+lr_g[["Pr(>Chisq)"]] <- c(NA, pchisq(lr_g$Chisq[2], lr_g$Df[2], lower.tail = FALSE))
+tabla(tibble(
+  Medida = c("Razón de verosimilitud (significancia conjunta)", "Pseudo-$R^2$ de McFadden",
+             "Predicciones correctas, corte 0,5", "Sensibilidad / especificidad, corte en la incidencia",
+             paste0("Hosmer-Lemeshow (", g_hl, " grupos)"), "Área bajo la curva ROC"),
+  Valor = c(paste0("$\\chi^2$(", lr_g$Df[2], ") = ", f2(lr_g$Chisq[2]), "; p ", fp(lr_g[["Pr(>Chisq)"]][2])),
+            f2(mcf(m_ppal), 3), paste(pp(t05["acierto"]), "\\%"),
+            paste0(pp(tk["sens"]), " \\% / ", pp(tk["esp"]), " \\%"),
+            paste0("$\\chi^2$(", hl$parameter, ") = ", f2(hl$statistic), "; p = ", fp(hl$p.value)), f2(auc, 3))),
+  "Bondad de ajuste del modelo principal")
+```
+
+El modelo es conjuntamente significativo y el área bajo la curva ROC
+(`r f2(auc, 3)`) indica que, al tomar al azar un hogar que paga y uno
+que no, el modelo asigna mayor probabilidad al primero el `r pp(auc, 0)`
+% de las veces. Acierta el `r pp(t05["acierto"])` % de los hogares con
+el corte de 0,5, y la prueba de Hosmer-Lemeshow no rechaza que las
+probabilidades predichas coincidan con las observadas. El pseudo-$R^2$
+es bajo, como es habitual: el pago depende también de enfermedades que
+la ECV no observa.
+
+# Discusión
+
+```{r}
+#| label: tab-discusion
+tabla(tibble(
+  `Resultado en La Candelaria` = c(
+    paste0("El gasto catastrófico es raro (", pp(inc("cat40")), " \\%); el pago de bolsillo es frecuente (", pp(inc("paga")), " \\%)"),
+    paste0("Cada adulto mayor eleva la probabilidad de pagar (+", pp(ge(e_c, "n65", 1)), " pp en los pobres)"),
+    "El subsidiado se asocia con menor probabilidad de pagar",
+    "Los hogares sin ocupados no pagan con más frecuencia",
+    "Los hogares pobres pagan con menos frecuencia y montos más bajos",
+    paste0("Con solo el módulo K, el gasto catastrófico parecería del ", pp(inc("cat40_k"), 0), " \\%")),
+  Literatura = c(
+    "Wagstaff et al. (2018): la cobertura es un indicador débil de protección financiera",
+    "Knaul et al. (2011); Pérez-Valbuena y Silva-Ureña (2015); Adisa (2015)",
+    "Pérez-Valbuena y Silva-Ureña (2015): menor probabilidad de algún gasto. Amaya-Lara (2016): mayor gasto catastrófico",
+    "Amaya-Lara (2016): más ocupados, menor gasto catastrófico",
+    "Alvis-Zakzuk et al. (2018): los pobres gastan menos, pero con más riesgo",
+    "Cylus et al. (2018): el método de medición cambia quién resulta afectado"),
+  `¿Coincide?` = c("Sí", "Sí", "Sí con la primera; distinto de la segunda", "No", "Sí, en el monto", "Sí, y lo amplía")),
+  "Resultados del trabajo frente a la literatura") |>
+  column_spec(1, width = "5.2cm") |> column_spec(2, width = "6.4cm") |> column_spec(3, width = "2.6cm")
+```
+
+La Tabla 10 resume cómo se relaciona cada resultado con la literatura.
+Se discuten en el mismo orden en que se presentaron.
+
+**Caso extremo frente a falta de protección.** Casi todos los hogares de
+La Candelaria están afiliados y, aun así, cuatro de cada diez pagan por
+salud en un mes, mientras solo `r pp(inc("cat40"))` % tiene gasto
+catastrófico. Es la distancia entre cobertura y protección financiera
+que documentan Wagstaff et al. (2018) en 133 países: el aseguramiento
+evita los pagos muy grandes, pero no evita los pagos frecuentes y
+moderados. En un sistema de aseguramiento casi universal, el gasto
+catastrófico deja de ser el mejor indicador del riesgo financiero de los
+hogares urbanos; medir solo el caso extremo daría una imagen
+tranquilizadora que oculta que el `r pp(mean(hog$paga[hog$adm == 1]))` %
+de los hogares con adultos mayores paga cada mes.
+
+**Adultos mayores.** El efecto de la edad, `r pp(ge(e_c, "n65", 1))` pp
+por cada adulto mayor en los hogares pobres, coincide con lo encontrado
+en América Latina (Knaul et al., 2011) y en Colombia (Pérez-Valbuena &
+Silva-Ureña, 2015), y con los hogares de adultos mayores poco asegurados
+de Adisa (2015). El canal es el esperado: los hogares con adultos
+mayores compran medicamentos con mucha más frecuencia (Tabla 5), un
+gasto recurrente asociado a enfermedades crónicas. Es además el
+resultado más estable del trabajo (sección 9).
+
+**Régimen subsidiado.** La menor probabilidad de pagar en los hogares
+del subsidiado coincide con Pérez-Valbuena y Silva-Ureña (2015), que
+también modelan la probabilidad de algún gasto, y es coherente con la
+exención de cuotas moderadoras y copagos (Decreto 1652 de 2022).
+Difiere, en cambio, del coeficiente positivo del subsidiado que reporta
+Amaya-Lara (2016). Los dos resultados no se contradicen, porque miden
+cosas distintas: la exención hace que los afiliados al subsidiado paguen
+con menos frecuencia, pero, cuando pagan, el pago puede pesar más sobre
+recursos más bajos y superar el umbral catastrófico. El efecto es mayor
+en los hogares pobres, aunque la diferencia con los no pobres no es
+significativa.
+
+**Hogares sin ocupados.** No aparece el efecto de la ocupación que
+reporta Amaya-Lara (2016). En La Candelaria, el
+`r pp(mean(hog$adm[hog$sinocup == 1]), 0)` % de los hogares sin ocupados
+tiene adultos mayores y el
+`r pp(mean(hog$pens_hh[hog$sinocup == 1]), 0)` % recibe pensión: la
+falta de ocupados refleja sobre todo la edad, que ya está en el modelo,
+y la ausencia de ingreso laboral afecta cuánto pesa el pago más que la
+decisión de pagar.
+
+**Hogares pobres.** Los hogares pobres pagan con menos frecuencia y
+montos más bajos, como en Cartagena (Alvis-Zakzuk et al., 2018). Esto
+puede reflejar tanto la exención del subsidiado, al que pertenecen con
+más frecuencia, como atención a la que se renuncia, que la ECV no
+registra. En la encuesta cualitativa, ningún hogar dejó de consultar por
+falta de dinero, pero `r kr("\\quad Dejaron de tomarlo")` dejaron de
+tomar un medicamento que la EPS no entregó: una renuncia que en la ECV
+aparecería como ausencia de pago (sección 10).
+
+**Medición.** Con solo el módulo K, que omite la vivienda y los gastos
+anuales, el gasto catastrófico se multiplicaría por
+`r f2(inc("cat40_k") / inc("cat40"), 0)`, y en los hogares pobres
+pasaría de `r pp(mean(pob$cat40))` % a `r pp(mean(pob$cat40_k))` %. El
+resultado confirma la advertencia de Cylus et al. (2018) sobre el peso
+del método y la amplía: además del umbral y del denominador, importa qué
+rubros componen el consumo del hogar.
+
+**Lo nuevo.** El trabajo aporta evidencia para un territorio específico
+de Medellín que separa el caso extremo del gasto catastrófico de la
+falta más amplia de protección financiera; identifica los medicamentos y
+la presencia de adultos mayores como el núcleo de esa desprotección; y
+deja una lección metodológica para la ECV: medir bien la capacidad de
+pago exige integrar los módulos J y K e incluir el arriendo estimado de
+quienes no pagan arriendo.
+
+# Verificación de los supuestos
+
+```{r}
+#| label: supuestos
+X  <- model.matrix(m_ppal); xb <- predict(m_ppal); P <- pnorm(xb)
+w_ <- dnorm(xb) / sqrt(P * (1 - P)); r_ <- (yv - P) / sqrt(P * (1 - P))
+lm_test <- function(Z) { ess <- sum(fitted(lm(r_ ~ cbind(w_ * X, Z) - 1))^2); q <- NCOL(Z)
+  c(LM = ess, gl = q, p = pchisq(ess, q, lower.tail = FALSE)) }
+het <- lm_test(w_ * -xb * X[, -1])                   # Davidson y MacKinnon (1984)
+nor <- lm_test(w_ * cbind(xb^2, xb^3))               # Bera, Jarque y Lee (1984)
+p_t <- function(f, t) coef_rob(probit(f, hog))[t, 4]
+p_esp <- c(link = coef(summary(glm(paga ~ xb + I(xb^2), binomial(link = "probit"), data = mutate(hog, xb = xb))))[3, 4],
+           p_t(update(f_ppal, . ~ . + I(n65^2)), "I(n65^2)"),
+           p_t(update(f_ppal, . ~ . + n65:pobre), "n65:pobre"),
+           p_t(update(f_ppal, . ~ . + sinocup:pobre), "sinocup:pobre"))
+vifs <- vif(lm(paga ~ n65 + sinocup + sh_subs + pobre, data = hog))
+separacion <- any(pf < 1e-6 | pf > 1 - 1e-6)
+epv  <- min(sum(yv), sum(1 - yv)) / (length(coef(m_ppal)) - 1)
+loo  <- map_dbl(seq_len(nrow(hog)), \(i) {
+  e <- avg_slopes(probit(f_ppal, hog[-i, ]), variables = "sh_subs", by = "pobre"); e$estimate[e$pobre == 1] })
+ok <- c(TRUE, epv >= 10, !separacion, all(vifs < 5), p_esp > 0.05, het["p"] > 0.05, nor["p"] > 0.05, max(loo) < 0)
+tabla(tibble(
+  Supuesto = c("Independencia de las observaciones", "Eventos por variable", "Ausencia de separación perfecta",
+               "Ausencia de colinealidad", "Forma funcional (link test)", "Linealidad de n65 (término cuadrático)",
+               "Aditividad: n65 × pobre", "Aditividad: sinocup × pobre",
+               "Homocedasticidad del error latente (LM)", "Normalidad del error latente (LM)",
+               "Estabilidad: quitar un hogar a la vez"),
+  Prueba = c("Un registro por hogar", paste0(min(sum(yv), sum(1 - yv)), " eventos / ", length(coef(m_ppal)) - 1,
+                                             " variables = ", f2(epv, 1)),
+             if (separacion) "Hay probabilidades en 0 o 1" else "Ninguna probabilidad en 0 o 1",
+             paste("VIF:", paste(f2(vifs), collapse = "; ")), paste0("p = ", fp(p_esp)),
+             sapply(list(het, nor), \(t) paste0("LM(", t["gl"], ") = ", f2(t["LM"]), "; p = ", fp(t["p"]))),
+             paste0("Efecto del subsidiado en pobres entre ", pp(min(loo)), " y ", pp(max(loo)), " pp")),
+  Criterio = c("Diseño de la muestra", "$\\geq$ 10", "Sin separación", "VIF < 5", rep("p > 0,05", 6), "Siempre negativo"),
+  Cumple = if_else(ok, "Sí", "No")),
+  "Verificación de los supuestos del modelo principal") |>
+  column_spec(1, width = "4.6cm") |> column_spec(2, width = "5.6cm") |>
+  column_spec(3, width = "3.2cm") |> column_spec(4, width = "1.1cm")
+```
+
+La Tabla 11 resume las pruebas. Hay `r f2(epv, 1)` eventos por variable,
+sin separación perfecta ni colinealidad (VIF entre `r f2(min(vifs))` y
+`r f2(max(vifs))`). El link test y los términos adicionales no detectan
+problemas de forma funcional, y las pruebas de multiplicadores de
+Lagrange (Davidson & MacKinnon, 1984; Bera et al., 1984) no rechazan la
+homocedasticidad ni la normalidad del error latente, condiciones
+necesarias para que el probit sea consistente. Al reestimar quitando un
+hogar a la vez, el efecto del subsidiado en los pobres se mantiene entre
+`r pp(min(loo))` y `r pp(max(loo))` pp. Con `r nrow(hog)` hogares, estas
+pruebas tienen poca potencia: no rechazar un supuesto no garantiza que
+se cumpla.
+
+# Robustez
+
+```{r}
+#| label: robustez
+efe <- function(f, d = hog, tipo = "probit") {
+  m <- if (tipo == "probit") probit(f, d) else if (tipo == "logit") glm(f, binomial("logit"), d) else lm(f, d)
+  e <- avg_slopes(m, variables = c("n65", "sh_subs"), by = "pobre", vcov = "HC0")
+  c1 <- function(t, g) { k <- e$term == t & e$pobre == g
+    paste0(if_else(e$estimate[k] > 0, "+", ""), pp(e$estimate[k]), estrellas(e$p.value[k])) }
+  c(c1("n65", 1), c1("n65", 0), c1("sh_subs", 1), c1("sh_subs", 0), sum(d$pobre))
+}
+con_pobre <- function(v) mutate(hog, pobre = .data[[v]])
+rob <- rbind(
+  "Modelo principal"                                  = efe(f_ppal),
+  "Solo pago de medicamentos"                         = efe(update(f_ppal, paga_med ~ .)),
+  "+ enfermos crónicos"                               = efe(update(f_ppal, . ~ . + ncron)),
+  "+ arrienda y jefatura femenina"                    = efe(update(f_ppal, . ~ . + arrienda + jefa)),
+  "Logit"                                             = efe(f_ppal, tipo = "logit"),
+  "Modelo de probabilidad lineal"                     = efe(f_ppal, tipo = "mpl"),
+  "Pobreza con el gasto en salud incluido"            = efe(f_ppal, con_pobre("pobre_cs")),
+  "Pobreza sin el arriendo (pagado o estimado)"       = efe(f_ppal, con_pobre("pobre_sa")),
+  "Pobreza como estrato 1 a 3"                        = efe(f_ppal, con_pobre("pobre_est")))
+tabla(tibble(Especificación = rownames(rob), `65+, pobres` = rob[, 1], `65+, no pobres` = rob[, 2],
+             `Subsidiado, pobres` = rob[, 3], `Subsidiado, no pobres` = rob[, 4], `Hogares pobres` = rob[, 5]),
+      "Efectos marginales promedio en especificaciones alternativas (puntos porcentuales)") |>
+  pack_rows("Variable dependiente", 2, 2) |> pack_rows("Controles y forma funcional", 3, 6) |>
+  pack_rows("Definición de pobreza", 7, 9) |>
+  footnote(general = "$^{***}$ p < 0,01; $^{**}$ p < 0,05; $^{*}$ p < 0,1. Errores estándar robustos.",
+           general_title = "", escape = FALSE, threeparttable = TRUE)
+```
+
+La Tabla 12 repite el modelo con cambios en la variable dependiente, los
+controles, la forma funcional y la definición de pobreza. El efecto de
+los adultos mayores es positivo y significativo en todas las
+especificaciones, y el del subsidiado es negativo en todas. Con las
+definiciones de pobreza basadas en el consumo, el efecto del subsidiado
+es mayor en los hogares pobres; con el estrato ocurre lo contrario. Como
+además la diferencia entre grupos no es significativa (Tabla 8), la
+conclusión prudente es que el subsidiado se asocia con menos pago de
+bolsillo en general, sin evidencia sólida de que el efecto dependa de la
+pobreza. Una definición de pobreza por debajo de la línea de
+subsistencia de Xu et al. (2003) no se usa, porque en La Candelaria
+identifica solo `r sum(hog$pobre_sub)` hogares.
+
+# Encuesta cualitativa
+
+La encuesta busca responder dos preguntas que la ECV deja abiertas: por
+qué los hogares pagan de su bolsillo a pesar de estar asegurados, y si
+no pagar refleja protección o renuncia a la atención (sección 5.3). Se
+buscaron hogares de cuatro perfiles del modelo: pobres con adultos
+mayores en el contributivo, pobres con adultos mayores en el subsidiado,
+pobres sin adultos mayores y no pobres con adultos mayores.
+
+```{r}
+#| label: encuesta
+tabla(enc, "Características de los hogares encuestados en La Candelaria") |>
+  footnote(general = paste("Mixto: unos miembros en el contributivo y otros en el subsidiado. Plan voluntario:",
+                           "medicina prepagada o plan complementario. Gasto por persona: gasto mensual del hogar por",
+                           "persona sin contar salud, en los rangos del cuestionario. Sin dato: el hogar reportó",
+                           "rubros de gasto pero no el monto."),
+           general_title = "", threeparttable = TRUE)
+
+grupos <- rle(resp$Grupo)
+t_resp <- tabla(transmute(resp, Respuesta, `Hogares (de 8)` = k, `Hogares que la marcaron` = if_else(ids == "", "Ninguno", str_replace_all(ids, ",", ", "))),
+                "Respuestas clave de la encuesta a hogares, por mecanismo") |>
+  column_spec(1, width = "8.4cm") |> column_spec(3, width = "3.6cm")
+fin <- cumsum(grupos$lengths); ini <- fin - grupos$lengths + 1
+for (j in seq_along(grupos$values)) t_resp <- pack_rows(t_resp, grupos$values[j], ini[j], fin[j])
+t_resp |>
+  footnote(general = paste("Preguntas de selección múltiple: un hogar puede aparecer en varias filas del mismo grupo.",
+                           "En la pregunta sobre si el pago les ha impedido ir, dos hogares (4 y 5) no respondieron.",
+                           "El hogar 5 marcó a la vez «no han tenido un gasto grande» y «ayuda de iglesia o",
+                           "fundación»; no se cuenta entre los que tuvieron un gasto grande. En la última pregunta se",
+                           "pedía una sola opción, pero varios hogares marcaron más de una."),
+           general_title = "", threeparttable = TRUE)
+```
+
+**Composición de la muestra.** Se encuestaron `r n_enc` hogares (Tabla
+13). Todos tienen al menos un adulto de 65 años o más y todos tienen al
+menos un miembro en el contributivo: seis están por completo en ese
+régimen y dos combinan contributivo y subsidiado. Ninguno está por
+completo en el subsidiado, y siete reportan un gasto mensual por
+persona, sin salud, superior a \$600.000 (el corte de pobreza del modelo
+es `r cop(corte_pobre)`). Cuatro hogares pagan además medicina prepagada
+o un plan complementario. La muestra, por tanto, no cubre los perfiles
+del subsidiado ni de hogares sin adultos mayores, y la frecuencia de
+planes voluntarios indica hogares con mayor capacidad de pago que los
+hogares pobres del modelo.
+
+**Por qué pagan quienes están asegurados: los medicamentos.** Es el
+resultado más claro de la encuesta (Tabla 14). En
+`r kr("Algún medicamento formulado quedó pendiente")` de los `r n_enc`
+hogares, al menos un medicamento formulado en los últimos tres meses
+quedó pendiente en la EPS; solo un hogar los recibió completos. Ante el
+pendiente, `r kr("\\quad Lo compraron")` hogares lo compraron,
+`r kr("\\quad Dejaron de tomarlo")` dejaron de tomarlo y uno esperó la
+entrega. Esto respalda la interpretación de la sección 4.5: el pago de
+medicamentos, el más frecuente en la ECV, responde en buena parte a
+entregas incompletas de medicamentos que el plan de beneficios cubre.
+Coincide con lo que los hogares cambiarían del sistema:
+`r kr("Que entreguen todos los medicamentos")` piden la entrega completa
+de medicamentos y `r kr("Citas más rápidas")`, citas más rápidas.
+
+**Adultos mayores.** En los `r kr("Gastó en salud en el último mes")`
+hogares que gastaron en salud en el último mes, más de la mitad o todo
+ese gasto fue para la persona mayor, y
+`r kr("Atención en casa para la persona mayor")` hogares pedirían
+atención domiciliaria para ella. Es coherente con el efecto de n65, el
+resultado más estable del modelo.
+
+**Copagos y cuotas moderadoras.** Los `r n_enc` hogares pagan entre
+\$5.000 y \$20.000 cada vez que usan la EPS, y ninguno reporta que ese
+cobro le haya impedido ir. Las cuotas moderadoras son un pago frecuente,
+pero pequeño, que no aparece como barrera de acceso: es la "base ancha"
+de la @fig-umbral, no su cola. Solo
+`r kr("Que no cobren cuotas ni copagos")` hogares eliminarían los cobros
+como cambio prioritario.
+
+**Un gasto que la ECV no mide: el transporte.**
+`r kr("Gastó en transporte a citas")` de los `r n_enc` hogares pagaron
+transporte a citas médicas, y dos de ellos no tuvieron ningún otro gasto
+en salud. La variable dependiente del modelo (K.6 + K.7) no incluye ese
+rubro, de modo que la ECV subestima el costo de usar los servicios de
+salud, aun para hogares que no pagan consultas ni medicamentos.
+
+**Protección o renuncia.** Ningún hogar dejó de buscar atención por
+falta de dinero; uno no la buscó por la demora en las citas. La renuncia
+aparece por otra vía: los `r kr("\\quad Dejaron de tomarlo")` hogares
+que dejaron de tomar un medicamento no entregado no pagaron por él, y en
+la ECV figurarían como hogares que no pagan. Esto confirma que el
+resultado "no paga" del modelo mezcla protección y renuncia, también en
+el contributivo. La encuesta no permite responder si los hogares del
+subsidiado pagan menos porque no les cobran o porque dejan de atenderse,
+porque no incluyó hogares por completo en ese régimen.
+
+**Afrontamiento.** `r kr("Tuvo un gasto grande en salud")` hogares
+tuvieron un gasto grande en salud. Lo cubrieron con ahorros
+(`r kr("Lo pagó con ahorros")`), préstamos de familiares o crédito
+bancario
+(`r kr("Lo pagó con préstamos de familiares o crédito bancario")`) o
+ayuda de una iglesia o fundación
+(`r kr("Recibió ayuda de una iglesia o fundación")`); ninguno recurrió a
+prestamistas informales ni vendió bienes. Solo un hogar, el único que
+dejaría de comprar comida cuando falta dinero, dejó de pagar alimentos.
+Es coherente con la baja incidencia del gasto catastrófico: los gastos
+grandes existen, pero la mayoría de estos hogares los absorbe sin
+recortar consumo básico.
+
+**Alcance.** Con ocho hogares elegidos de forma intencional, estos
+resultados ilustran mecanismos y no son representativos de la comuna.
+Además, hay inconsistencias menores entre módulos: en el módulo A solo
+tres hogares reportan pensión, pero en el módulo C cinco dicen estar en
+el contributivo por ser pensionados.
+
+# Conclusiones
+
+En La Candelaria, el problema de los hogares frente al gasto en salud
+**no es el caso extremo, sino la falta de protección financiera**. Con
+el consumo medido con todos los rubros de gasto de la ECV, solo el
+`r pp(inc("cat40"))` % de los hogares tiene gasto catastrófico, pero el
+`r pp(inc("paga"))` % paga de su bolsillo por salud en un solo mes,
+sobre todo por medicamentos. Pagan con más frecuencia los hogares con
+adultos mayores (cada uno suma `r pp(ge(e_c, "n65", 1))` pp) y los del
+contributivo: un hogar pobre con un adulto mayor y sin ocupados paga con
+`r f2(pv(1, 0, 1), 0)` % de probabilidad en el contributivo y
+`r f2(pv(1, 1, 1), 0)` % en el subsidiado.
+
+**Implicaciones de política.** (1) Garantizar la entrega completa y
+oportuna de medicamentos para enfermedades crónicas, el gasto de
+bolsillo más frecuente; en la encuesta,
+`r kr("Algún medicamento formulado quedó pendiente")` de los `r n_enc`
+hogares tuvieron un medicamento pendiente en los últimos tres meses. (2)
+Revisar las cuotas moderadoras y los copagos de los adultos mayores del
+contributivo con bajos recursos, que no tienen la exención del
+subsidiado. (3) Medir en la ECV la atención a la que se renuncia por
+falta de dinero, porque no pagar no siempre significa estar protegido, y
+construir el consumo con todos los módulos de gasto.
+
+**Limitaciones.** Los efectos son asociaciones condicionales y no
+causales: la afiliación depende del SISBÉN y la ocupación puede depender
+de la salud. El gasto se mide en un solo mes, lo que subestima los pagos
+recurrentes a lo largo del año. El arriendo estimado de los propietarios
+depende de su propia percepción, y la pobreza es una medida relativa. No
+hay evidencia sólida de que el subsidiado proteja más a los pobres que a
+los no pobres. Por último, el modelo no distingue entre no pagar por
+estar protegido y no pagar por renunciar a la atención. La encuesta
+cualitativa muestra que esa renuncia existe, sobre todo como abandono de
+medicamentos no entregados, pero no incluyó hogares del todo
+subsidiados, y la ECV no mide el transporte a citas, un gasto que
+reportaron casi todos los hogares encuestados.
+
+# Referencias {.unnumbered}
+
+\small
+\setlength{\parindent}{-1.5em}
+\setlength{\leftskip}{1.5em}
+\setlength{\parskip}{0.3em}
+
+Adisa, O. (2015). Investigating determinants of catastrophic health
+spending among poorly insured elderly households in urban Nigeria.
+*International Journal for Equity in Health, 14*, 79.
+https://doi.org/10.1186/s12939-015-0188-5
+
+Ai, C. y Norton, E. C. (2003). Interaction terms in logit and probit
+models. *Economics Letters, 80*(1), 123–129.
+https://doi.org/10.1016/S0165-1765(03)00032-6
+
+Alcaldía de Medellín, Departamento Administrativo de Planeación. (2026).
+*Encuesta de Calidad de Vida de Medellín 2025*. Alcaldía de Medellín.
+
+Alvis-Zakzuk, J., Marrugo-Arnedo, C., Alvis-Zakzuk, N. J., Gómez de la
+Rosa, F., Florez-Tanus, Á., Moreno-Ruiz, D. y Alvis-Guzmán, N. (2018).
+Gasto de bolsillo y gasto catastrófico en salud en los hogares de
+Cartagena, Colombia. *Revista de Salud Pública, 20*(5).
+https://doi.org/10.15446/rsap.v20n5.61403
+
+Amaya-Lara, J. L. (2016). Catastrophic expenditure due to out-of-pocket
+health payments and its determinants in Colombian households.
+*International Journal for Equity in Health, 15*, 182.
+https://doi.org/10.1186/s12939-016-0472-z
+
+Bera, A. K., Jarque, C. M. y Lee, L.-F. (1984). Testing the normality
+assumption in limited dependent variable models. *International Economic
+Review, 25*(3), 563–578.
+
+Cylus, J., Thomson, S. y Evetovits, T. (2018). Catastrophic health
+spending in Europe: equity and policy implications of different
+calculation methods. *Bulletin of the World Health Organization*.
+https://researchonline.lse.ac.uk/id/eprint/89062
+
+Davidson, R. y MacKinnon, J. G. (1984). Convenient specification tests
+for logit and probit models. *Journal of Econometrics, 25*(3), 241–262.
+
+Duan, N., Manning, W. G., Morris, C. N. y Newhouse, J. P. (1983). A
+comparison of alternative models for the demand for medical care.
+*Journal of Business & Economic Statistics, 1*(2), 115–126.
+
+Knaul, F. M., Wong, R., Arreola-Ornelas, H. y Méndez, O. (2011).
+Household catastrophic health expenditures: a comparative analysis of
+twelve Latin American and Caribbean countries. *Salud Pública de México,
+53*(Supl. 2), S85–S95. https://pubmed.ncbi.nlm.nih.gov/21877097/
+
+Ministerio de Salud y Protección Social. (2022). *Decreto 1652 de 2022*,
+por el cual se reglamentan las cuotas moderadoras y los copagos.
+
+Naciones Unidas. (2015). *Transformar nuestro mundo: la Agenda 2030 para
+el Desarrollo Sostenible* (Resolución A/RES/70/1). Asamblea General de
+las Naciones Unidas.
+
+Pérez-Valbuena, G. J. y Silva-Ureña, A. (2015). *Una mirada a los gastos
+de bolsillo en salud para Colombia* (Documentos de Trabajo sobre
+Economía Regional No. 218). Banco de la República.
+https://repositorio.banrep.gov.co/bitstreams/a9883a3c-a036-45d8-aba1-a430fc6e13eb/download
+
+Ramírez-Agudelo, J. L. y Pinilla-Roncancio, M. (2023). What are the
+factors associated with catastrophic health expenditure in Colombia? A
+multi-level analysis. *PLOS ONE, 18*(7).
+https://doi.org/10.1371/journal.pone.0288973
+
+Wagstaff, A., Flores, G., Hsu, J., Smitz, M.-F., Chepynoga, K., Buisman,
+L., Wilgenburg, K. y Eozenou, P. (2018). Progress on catastrophic health
+spending in 133 countries. *The Lancet Global Health, 6*(2), e169–e179.
+https://doi.org/10.1016/S2214-109X(17)30429-1
+
+Wagstaff, A. y Lindelow, M. (2008). Can insurance increase financial
+risk? The curious case of health insurance in China. *Journal of Health
+Economics, 27*(4), 990–1005.
+https://doi.org/10.1016/j.jhealeco.2008.02.002
+
+Wagstaff, A. y van Doorslaer, E. (2003). Catastrophe and impoverishment
+in paying for health care: with applications to Vietnam 1993–1998.
+*Health Economics, 12*(11), 921–934. https://doi.org/10.1002/hec.776
+
+WHO. (2010). *The world health report 2010. Health systems financing:
+the path to universal coverage*. World Health Organization.
+
+Williams, R. (2012). Using the margins command to estimate and interpret
+adjusted predictions and marginal effects. *The Stata Journal, 12*(2),
+308–331.
+
+World Bank. (2016). *Poverty and shared prosperity 2016: Taking on
+inequality*. World Bank. https://doi.org/10.1596/978-1-4648-0958-3
+
+World Bank y WHO. (s. f.). *SDG indicator 3.8.2 metadata*.
+https://worldbank.github.io/sdg-metadata/metadata/en/3-8-2
+
+Xu, K., Evans, D. B., Kawabata, K., Zeramdini, R., Klavus, J. y Murray,
+C. J. L. (2003). Household catastrophic health expenditure: a
+multicountry analysis. *The Lancet, 362*(9378), 111–117.
+https://doi.org/10.1016/S0140-6736(03)13861-5
+
+```{r}
+#| label: abrir-pdf
+#| include: false
+# ------------------------------------------------------------------------------------------
+# Al terminar de crear el PDF: lo guarda en la carpeta Descargas con el nombre de entrega y lo
+# abre en el navegador con un botón "Descargar PDF". (En RStudio, el botón Render además lo
+# muestra en el Viewer.) Solo se activa al renderizar, no con "Run All".
+# ------------------------------------------------------------------------------------------
+if (isTRUE(getOption("knitr.in.progress"))) local({
+  nombre   <- "castaneda_rojas_villadiego_zapata_R2.pdf"
+  carpeta  <- normalizePath(getwd(), winslash = "/")
+  pdf      <- file.path(carpeta, sub("\\.[^.]*$", ".pdf", basename(knitr::current_input())))
+  descargas <- if (.Platform$OS.type == "windows") file.path(Sys.getenv("USERPROFILE"), "Downloads") else path.expand("~/Downloads")
+  if (!dir.exists(descargas)) descargas <- carpeta
+  tarea <- c(
+    paste0("pdf <- ", deparse(pdf), "; inicio <- ", as.numeric(Sys.time())),
+    paste0("carpeta <- ", deparse(carpeta), "; descargas <- ", deparse(descargas), "; nombre <- ", deparse(nombre)),
+    "# Esperar a que Quarto termine de escribir el PDF (máximo 10 minutos)",
+    "listo <- FALSE",
+    "for (i in 1:600) {",
+    "  if (file.exists(pdf) && as.numeric(file.mtime(pdf)) > inicio) {",
+    "    t1 <- file.size(pdf); Sys.sleep(2); if (file.size(pdf) == t1) { listo <- TRUE; break }",
+    "  }",
+    "  Sys.sleep(1)",
+    "}",
+    "if (!listo) quit(save = 'no')",
+    "file.copy(pdf, file.path(carpeta, nombre), overwrite = TRUE)",
+    "file.copy(pdf, file.path(descargas, nombre), overwrite = TRUE)",
+    "html <- paste0('<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">',",
+    "  '<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Reto 2</title><style>',",
+    "  'body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#f6f5f2;color:#1f1f1d}',",
+    "  'header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px}',",
+    "  'h1{font-size:1.15rem;margin:0}p{margin:2px 0 0;color:#6b6a66;font-size:.85rem}',",
+    "  'a{padding:10px 18px;border-radius:8px;background:#2a78d6;color:#fff;text-decoration:none;font-weight:600}',",
+    "  'iframe{display:block;width:100%;height:calc(100vh - 76px);border:0;background:#fff}</style></head><body>',",
+    "  '<header><div><h1>\\u00bfCat\\u00e1strofe o desprotecci\\u00f3n?</h1><p>Guardado en: ', file.path(descargas, nombre), '</p></div>',",
+    "  '<a href=\"', nombre, '\" download=\"', nombre, '\">Descargar PDF</a></header>',",
+    "  '<iframe src=\"', nombre, '\" title=\"Trabajo escrito\"></iframe></body></html>')",
+    "pagina <- file.path(carpeta, 'trabajo.html')",
+    "writeLines(enc2utf8(html), pagina, useBytes = TRUE)",
+    "if (.Platform$OS.type == 'windows') shell.exec(pagina) else utils::browseURL(paste0('file://', pagina))")
+  script <- file.path(dirname(tempdir()), "reto2_abrir_pdf.R")   # fuera de la carpeta temporal de esta sesión
+  writeLines(tarea, script, useBytes = TRUE)
+  system2(file.path(R.home("bin"), "Rscript"), shQuote(script), wait = FALSE, stdout = FALSE, stderr = FALSE)
+})
+```

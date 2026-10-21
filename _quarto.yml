@@ -1,0 +1,9 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - posts/**/*.qmd
+
+website:
+  title: "Análisis del gasto de bolsillo en salud"

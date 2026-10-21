@@ -1,0 +1,36 @@
+---
+title: "Resultados y análisis del modelo Probit"
+description: "Probabilidades de pago de bolsillo según el régimen de afiliación y características del hogar."
+author: "Sofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata"
+date: "2026-10-23" # Un día antes
+categories: ["Resultados", "Probit", "Econometría"]
+image: "probabilidades_predichas.png" 
+---
+
+## Resultados del Modelo Probit
+
+Para ir más allá de la descripción, estimamos un modelo Probit para calcular la probabilidad de que un hogar incurra en gastos de bolsillo. Los efectos marginales nos muestran resultados reveladores.
+
+![Probabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)](probabilidades_predichas.png){fig-align="center"}
+
+Un hogar pobre con un adulto mayor y sin ocupados paga de bolsillo con una probabilidad de 62 % si está en el contributivo y de 26 % si está en el subsidiado; con dos adultos mayores, de 78 % y 42 %.
+
+# Discusión
+
+El gasto catastrófico es raro (0,9 %); el pago de bolsillo es frecuente (39,6 %). Casi todos los hogares de La Candelaria están afiliados y, aun así, cuatro de cada diez pagan por salud en un mes. Es la distancia entre cobertura y protección financiera que documentan Wagstaff et al. (2018) en 133 países: el aseguramiento evita los pagos muy grandes, pero no evita los pagos frecuentes y moderados.
+
+Cada adulto mayor eleva la probabilidad de pagar. El efecto de la edad, 13,9 pp por cada adulto mayor en los hogares pobres, coincide con lo encontrado en América Latina (Knaul et al., 2011) y en Colombia (Pérez-Valbuena & Silva-Ureña, 2015). El canal es el esperado: los hogares con adultos mayores compran medicamentos con mucha más frecuencia, un gasto recurrente asociado a enfermedades crónicas.
+
+El subsidiado se asocia con menor probabilidad de pagar. La menor probabilidad de pagar en los hogares del subsidiado coincide con Pérez-Valbuena y Silva-Ureña (2015), que también modelan la probabilidad de algún gasto, y es coherente con la exención de cuotas moderadoras y copagos (Decreto 1652 de 2022).
+
+Los hogares sin ocupados no pagan con más frecuencia. No aparece el efecto de la ocupación que reporta Amaya-Lara (2016). La falta de ocupados refleja sobre todo la edad, que ya está en el modelo.
+
+Los hogares pobres pagan con menos frecuencia y montos más bajos, como en Cartagena (Alvis-Zakzuk et al., 2018). Esto puede reflejar tanto la exención del subsidiado, al que pertenecen con más frecuencia, como atención a la que se renuncia.
+
+Con solo el módulo K, el gasto catastrófico parecería del 23 %. Con solo el módulo K, que omite la vivienda y los gastos anuales, el gasto catastrófico se multiplicaría por 26. El resultado confirma la advertencia de Cylus et al. (2018) sobre el peso del método y la amplía.
+
+# Conclusiones
+
+En La Candelaria, el problema de los hogares frente al gasto en salud **no es el caso extremo, sino la falta de protección financiera**. Con el consumo medido con todos los rubros de gasto de la ECV, solo el 0,9 % de los hogares tiene gasto catastrófico, pero el 39,6 % paga de su bolsillo por salud en un solo mes, sobre todo por medicamentos. Pagan con más frecuencia los hogares con adultos mayores y los del contributivo.
+
+**Implicaciones de política.** (1) Garantizar la entrega completa y oportuna de medicamentos para enfermedades crónicas, el gasto de bolsillo más frecuente. (2) Revisar las cuotas moderadoras y los copagos de los adultos mayores del contributivo con bajos recursos, que no tienen la exención del subsidiado. (3) Medir en la ECV la atención a la que se renuncia por falta de dinero, porque no pagar no siempre significa estar protegido, y construir el consumo con todos los módulos de gasto.

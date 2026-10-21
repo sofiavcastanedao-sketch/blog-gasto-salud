@@ -1,0 +1,16 @@
+---
+title: "Conclusiones y recomendaciones de política"
+description: "Garantizar la entrega de medicamentos y revisar cuotas moderadoras para adultos mayores."
+author: "Sofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata"
+date: "2026-10-23" # La fecha más antigua para que salga de último
+categories: ["Conclusiones", "Políticas Públicas"]
+image: "cierre.jpg" 
+---
+
+# Conclusiones
+
+En La Candelaria, el problema de los hogares frente al gasto en salud **no es el caso extremo, sino la falta de protección financiera**. Con el consumo medido con todos los rubros de gasto de la ECV, solo el 0,9 % de los hogares tiene gasto catastrófico, pero el 39,6 % paga de su bolsillo por salud en un solo mes, sobre todo por medicamentos. Pagan con más frecuencia los hogares con adultos mayores y los del contributivo.
+
+![En La Candelaria, el problema de los hogares frente al gasto en salud no es el caso extremo, sino la falta de protección financiera](cierre.jpg){fig-align="center"}
+
+**Implicaciones de política.** (1) Garantizar la entrega completa y oportuna de medicamentos para enfermedades crónicas, el gasto de bolsillo más frecuente. (2) Revisar las cuotas moderadoras y los copagos de los adultos mayores del contributivo con bajos recursos, que no tienen la exención del subsidiado. (3) Medir en la ECV la atención a la que se renuncia por falta de dinero, porque no pagar no siempre significa estar protegido, y construir el consumo con todos los módulos de gasto.

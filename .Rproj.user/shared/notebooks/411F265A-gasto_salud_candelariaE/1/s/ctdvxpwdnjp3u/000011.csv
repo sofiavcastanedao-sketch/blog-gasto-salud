@@ -1,0 +1,1 @@
+"0","fr <- function(a, f) f(filter(hog, adm == a))"

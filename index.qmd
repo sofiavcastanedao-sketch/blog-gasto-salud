@@ -1,0 +1,14 @@
+---
+title: "Análisis del gasto de bolsillo en salud en La Candelaria"
+listing:
+  contents: posts
+  
+  
+  sort: "date desc"
+  
+  
+  type: default
+  
+  
+  categories: true
+---

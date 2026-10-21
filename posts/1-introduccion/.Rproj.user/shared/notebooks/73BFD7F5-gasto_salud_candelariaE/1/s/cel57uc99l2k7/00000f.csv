@@ -1,0 +1,5 @@
+"0","#| label: modelos"
+"0","f_ppal <- paga ~ n65 + sinocup + sh_subs * pobre"
+"0","m_ppal <- probit(f_ppal, hog)"
+"2","Error en probit(f_ppal, hog): no se pudo encontrar la función ""probit""
+"
