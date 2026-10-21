@@ -1,8 +1,6 @@
 ---
-title: "Resultados"
-description: "Errores estándar robustos entre paréntesis. Pobres y no pobres: efecto promedio dentro de cada grupo; para Hogar
-pobre no aplica. En La Candelaria, la diferencia entre pobres y no pobres es de -2,1 pp para Adultos mayores (p =
-0,139) y de -11,3 pp para Subsidiado (p = 0,438). ∗∗∗ p < 0,01; ∗∗ p < 0,05; ∗ p < 0,1."
+title: "Resultados del modelo"
+description: Efectos Marginales
 author: "Sofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata"
 date: "2026-10-23" 
 categories: ["Resultados", "Probit", "Econometría"]
@@ -12,6 +10,8 @@ image: "efectos_marginales.png"
 ## Resultados de los Efectos Marginales
 
 Efectos marginales promedio sobre la probabilidad de pagar de bolsillo (puntos porcentuales).
+
+Errores estándar robustos entre paréntesis. Pobres y no pobres: efecto promedio dentro de cada grupo; para Hogar pobre no aplica. En La Candelaria, la diferencia entre pobres y no pobres es de -2,1 pp para Adultos mayores (p = 0,139) y de -11,3 pp para Subsidiado (p = 0,438). ∗∗∗ p < 0,01; ∗∗ p < 0,05; ∗ p < 0,1.
 
 ![Probabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)](efectos_marginales.png){fig-align="center"}
 
@@ -30,9 +30,3 @@ Los hogares sin ocupados no pagan con más frecuencia. No aparece el efecto de l
 Los hogares pobres pagan con menos frecuencia y montos más bajos, como en Cartagena (Alvis-Zakzuk et al., 2018). Esto puede reflejar tanto la exención del subsidiado, al que pertenecen con más frecuencia, como atención a la que se renuncia.
 
 Con solo el módulo K, el gasto catastrófico parecería del 23 %. Con solo el módulo K, que omite la vivienda y los gastos anuales, el gasto catastrófico se multiplicaría por 26. El resultado confirma la advertencia de Cylus et al. (2018) sobre el peso del método y la amplía.
-
-# Conclusiones
-
-En La Candelaria, el problema de los hogares frente al gasto en salud **no es el caso extremo, sino la falta de protección financiera**. Con el consumo medido con todos los rubros de gasto de la ECV, solo el 0,9 % de los hogares tiene gasto catastrófico, pero el 39,6 % paga de su bolsillo por salud en un solo mes, sobre todo por medicamentos. Pagan con más frecuencia los hogares con adultos mayores y los del contributivo.
-
-**Implicaciones de política.** (1) Garantizar la entrega completa y oportuna de medicamentos para enfermedades crónicas, el gasto de bolsillo más frecuente. (2) Revisar las cuotas moderadoras y los copagos de los adultos mayores del contributivo con bajos recursos, que no tienen la exención del subsidiado. (3) Medir en la ECV la atención a la que se renuncia por falta de dinero, porque no pagar no siempre significa estar protegido, y construir el consumo con todos los módulos de gasto.
