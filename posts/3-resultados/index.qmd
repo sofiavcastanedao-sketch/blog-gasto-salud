@@ -9,11 +9,11 @@ image: "probabilidades_predichas.png"
 
 ## Resultados del Modelo Probit
 
-Para ir más allá de la descripción, estimamos un modelo Probit para calcular la probabilidad de que un hogar incurra en gastos de bolsillo. Los efectos marginales nos muestran resultados reveladores.
+Efectos marginales promedio sobre la probabilidad de pagar de bolsillo (puntos porcentuales).
 
-![Probabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)](probabilidades_predichas.png){fig-align="center"}
+![Probabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)](efectos_marginales.png){fig-align="center"}
 
-Un hogar pobre con un adulto mayor y sin ocupados paga de bolsillo con una probabilidad de 62 % si está en el contributivo y de 26 % si está en el subsidiado; con dos adultos mayores, de 78 % y 42 %.
+La Tabla de efectos marginales reporta los coeficientes del modelo principal, estimado con los hogares de La Candelaria (columna 1), y del mismo modelo en las otras 15 comunas (columna 2). El coeficiente de Adultos mayores es positivo y significativo en ambas. Como en un probit los coeficientes no miden magnitudes, la interpretación se hace con los efectos marginales.
 
 # Discusión
 
