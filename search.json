@@ -67,7 +67,7 @@
     "href": "index.html",
     "title": "Análisis del gasto de bolsillo en salud en La Candelaria",
     "section": "",
-    "text": "Motivación y contexto\n\n\n\nIntroducción\n\nMedellín\n\nSalud\n\n\n\n¿El problema de los hogares de La Candelaria frente al gasto en salud es el caso extremo o una falta más amplia de protección?\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\n\n\n\n\n\n\n\nDatos y estadísticas descriptivas\n\n\n\nDatos\n\nSalud\n\nMedellín\n\n\n\nAnálisis de la estructura demográfica y la cascada del aseguramiento al pago de bolsillo.\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\n\n\n\n\n\n\n\nResultados y análisis del modelo Probit\n\n\n\nResultados\n\nProbit\n\nEconometría\n\n\n\nProbabilidades de pago de bolsillo según el régimen de afiliación y características del hogar.\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\n\n\n\n\n\n\n\nConclusiones y recomendaciones de política\n\n\n\nConclusiones\n\nPolíticas Públicas\n\n\n\nGarantizar la entrega de medicamentos y revisar cuotas moderadoras para adultos mayores.\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\nNo matching items"
+    "text": "Motivación y contexto\n\n\n\nIntroducción\n\nMedellín\n\nSalud\n\n\n\n¿El problema de los hogares de La Candelaria frente al gasto en salud es el caso extremo o una falta más amplia de protección?\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\n\n\n\n\n\n\n\nDatos y estadísticas descriptivas\n\n\n\nDatos\n\nSalud\n\nMedellín\n\n\n\nAnálisis de la estructura demográfica y la cascada del aseguramiento al pago de bolsillo.\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\n\n\n\n\n\n\n\nResultados\n\n\n\nResultados\n\nProbit\n\nEconometría\n\n\n\nProbabilidades de pago de bolsillo según el régimen de afiliación y características del hogar.\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\n\n\n\n\n\n\n\nConclusiones y recomendaciones de política\n\n\n\nConclusiones\n\nPolíticas Públicas\n\n\n\nGarantizar la entrega de medicamentos y revisar cuotas moderadoras para adultos mayores.\n\n\n\n\n\nOct 23, 2026\n\n\nSofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata\n\n\n\n\n\nNo matching items"
   },
   {
     "objectID": "posts/1-introduccion/index.html",
@@ -79,14 +79,14 @@
   {
     "objectID": "posts/3-resultados/index.html",
     "href": "posts/3-resultados/index.html",
-    "title": "Resultados y análisis del modelo Probit",
+    "title": "Resultados",
     "section": "",
     "text": "Efectos marginales promedio sobre la probabilidad de pagar de bolsillo (puntos porcentuales).\n\n\n\nProbabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)\n\n\nLa Tabla de efectos marginales reporta los coeficientes del modelo principal, estimado con los hogares de La Candelaria (columna 1), y del mismo modelo en las otras 15 comunas (columna 2). El coeficiente de Adultos mayores es positivo y significativo en ambas. Como en un probit los coeficientes no miden magnitudes, la interpretación se hace con los efectos marginales."
   },
   {
     "objectID": "posts/3-resultados/index.html#resultados",
     "href": "posts/3-resultados/index.html#resultados",
-    "title": "Resultados y análisis del modelo Probit",
+    "title": "Resultados",
     "section": "",
     "text": "Efectos marginales promedio sobre la probabilidad de pagar de bolsillo (puntos porcentuales).\n\n\n\nProbabilidad predicha de pagar de bolsillo por salud en un hogar pobre de La Candelaria, por adultos mayores y régimen (IC 95 %)\n\n\nLa Tabla de efectos marginales reporta los coeficientes del modelo principal, estimado con los hogares de La Candelaria (columna 1), y del mismo modelo en las otras 15 comunas (columna 2). El coeficiente de Adultos mayores es positivo y significativo en ambas. Como en un probit los coeficientes no miden magnitudes, la interpretación se hace con los efectos marginales."
   }
