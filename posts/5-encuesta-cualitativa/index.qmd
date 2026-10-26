@@ -2,7 +2,7 @@
 title: "Encuesta cualitativa"
 description: "Entrevistas a habitantes de La Candelaria sobre su experiencia con el gasto de bolsillo en salud."
 author: "Sofía Valentina Castañeda, Juan Diego Rojas, Camila Villadiego, José Manuel Zapata"
-date: "2026-10-25"
+date: "2026-10-23"
 categories: ["Video", "Medellín", "Salud"]
 image: "portada.png"
 ---
